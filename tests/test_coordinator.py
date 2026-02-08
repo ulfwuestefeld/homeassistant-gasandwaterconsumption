@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-
-from homeassistant.core import HomeAssistant
+from unittest.mock import patch
 
 from custom_components.gas_water_meter.const import DAYS_PER_MONTH, DAYS_PER_YEAR
 from custom_components.gas_water_meter.coordinator import MeterCoordinator, _days_between
+from homeassistant.core import HomeAssistant
 
 from .conftest import MOCK_GAS_CONFIG, MOCK_STORE_DATA
 
@@ -42,9 +39,7 @@ def test_days_between_invalid_timestamps() -> None:
     assert _days_between("2026-01-01T10:00:00+00:00", "invalid") is None
 
 
-async def test_coordinator_computes_core_data(
-    hass: HomeAssistant, mock_store_load, mock_store_save
-) -> None:
+async def test_coordinator_computes_core_data(hass: HomeAssistant, mock_store_load, mock_store_save) -> None:
     """Test that coordinator computes core sensor values correctly."""
     entry = MockConfigEntry(
         domain="gas_water_meter",
@@ -75,9 +70,7 @@ async def test_coordinator_computes_core_data(
     assert abs(data.days_between - 17.0) < 0.1
 
 
-async def test_coordinator_computes_projection(
-    hass: HomeAssistant, mock_store_load, mock_store_save
-) -> None:
+async def test_coordinator_computes_projection(hass: HomeAssistant, mock_store_load, mock_store_save) -> None:
     """Test projection calculations."""
     entry = MockConfigEntry(
         domain="gas_water_meter",
@@ -110,9 +103,7 @@ async def test_coordinator_computes_projection(
     assert abs(data.yearly_projection - expected_yearly) < 1.0
 
 
-async def test_coordinator_computes_costs(
-    hass: HomeAssistant, mock_store_load, mock_store_save
-) -> None:
+async def test_coordinator_computes_costs(hass: HomeAssistant, mock_store_load, mock_store_save) -> None:
     """Test cost calculations."""
     entry = MockConfigEntry(
         domain="gas_water_meter",
@@ -144,9 +135,7 @@ async def test_coordinator_computes_costs(
     assert data.yearly_projected_cost is not None
 
 
-async def test_coordinator_empty_store(
-    hass: HomeAssistant, mock_store_empty, mock_store_save
-) -> None:
+async def test_coordinator_empty_store(hass: HomeAssistant, mock_store_empty, mock_store_save) -> None:
     """Test coordinator with no readings."""
     entry = MockConfigEntry(
         domain="gas_water_meter",
@@ -176,9 +165,7 @@ async def test_coordinator_empty_store(
     assert data.yearly_projected_cost is None
 
 
-async def test_coordinator_single_reading(
-    hass: HomeAssistant, mock_store_save
-) -> None:
+async def test_coordinator_single_reading(hass: HomeAssistant, mock_store_save) -> None:
     """Test coordinator with only one reading (no delta/projection possible)."""
     single_reading_data = {
         **MOCK_STORE_DATA,

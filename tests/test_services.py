@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
+from custom_components.gas_water_meter.const import DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-
-from custom_components.gas_water_meter.const import DOMAIN
 
 from .conftest import MOCK_GAS_CONFIG, MOCK_STORE_DATA
 
@@ -22,12 +19,15 @@ except ImportError:
 
 async def _setup_entry(hass: HomeAssistant) -> MockConfigEntry:
     """Set up a config entry for testing."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=MOCK_STORE_DATA,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=MOCK_STORE_DATA,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -68,10 +68,13 @@ async def test_record_reading_validation_decrease(hass: HomeAssistant) -> None:
     """Test that recording a decreased reading is rejected."""
     entry = await _setup_entry(hass)
 
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
-    ), pytest.raises(HomeAssistantError):
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
+        pytest.raises(HomeAssistantError),
+    ):
         await hass.services.async_call(
             DOMAIN,
             "record_reading",
@@ -124,17 +127,19 @@ async def test_set_price_service(hass: HomeAssistant) -> None:
     assert any(p["price_per_unit"] == 2.10 for p in prices)
 
 
-async def test_record_reading_with_image_ocr_unavailable(
-    hass: HomeAssistant, mock_tesseract_unavailable
-) -> None:
+async def test_record_reading_with_image_ocr_unavailable(hass: HomeAssistant, mock_tesseract_unavailable) -> None:
     """Test recording with image when OCR is unavailable and no manual reading."""
     entry = await _setup_entry(hass)
 
-    with patch("os.path.isfile", return_value=True), patch(
-        "custom_components.gas_water_meter.store.MeterStore.async_save_image",
-        new_callable=AsyncMock,
-        return_value="/media/gas_water_meter/test/image.jpg",
-    ), pytest.raises(HomeAssistantError):
+    with (
+        patch("os.path.isfile", return_value=True),
+        patch(
+            "custom_components.gas_water_meter.store.MeterStore.async_save_image",
+            new_callable=AsyncMock,
+            return_value="/media/gas_water_meter/test/image.jpg",
+        ),
+        pytest.raises(HomeAssistantError),
+    ):
         await hass.services.async_call(
             DOMAIN,
             "record_reading",
@@ -153,13 +158,17 @@ async def test_record_reading_with_manual_value_and_image(
     """Test recording with both manual reading and image (image stored, OCR skipped)."""
     entry = await _setup_entry(hass)
 
-    with patch("os.path.isfile", return_value=True), patch(
-        "custom_components.gas_water_meter.store.MeterStore.async_save_image",
-        new_callable=AsyncMock,
-        return_value="/media/gas_water_meter/test/image.jpg",
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch("os.path.isfile", return_value=True),
+        patch(
+            "custom_components.gas_water_meter.store.MeterStore.async_save_image",
+            new_callable=AsyncMock,
+            return_value="/media/gas_water_meter/test/image.jpg",
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         await hass.services.async_call(
             DOMAIN,
@@ -177,15 +186,11 @@ async def test_record_reading_with_manual_value_and_image(
     assert coordinator is not None
 
 
-async def test_read_meter_image_service_ocr_unavailable(
-    hass: HomeAssistant, mock_tesseract_unavailable
-) -> None:
+async def test_read_meter_image_service_ocr_unavailable(hass: HomeAssistant, mock_tesseract_unavailable) -> None:
     """Test read_meter_image service when OCR is unavailable."""
     await _setup_entry(hass)
 
-    with patch("os.path.isfile", return_value=True), pytest.raises(
-        HomeAssistantError
-    ):
+    with patch("os.path.isfile", return_value=True), pytest.raises(HomeAssistantError):
         await hass.services.async_call(
             DOMAIN,
             "read_meter_image",
@@ -201,9 +206,7 @@ async def test_record_reading_image_not_found(hass: HomeAssistant) -> None:
     """Test recording with a non-existent image file."""
     entry = await _setup_entry(hass)
 
-    with patch("os.path.isfile", return_value=False), pytest.raises(
-        HomeAssistantError
-    ):
+    with patch("os.path.isfile", return_value=False), pytest.raises(HomeAssistantError):
         await hass.services.async_call(
             DOMAIN,
             "record_reading",

@@ -7,7 +7,7 @@
             "type": "application",
             "name": "gas_water_meter",
             "version": "0.0.1",
-            "description": "Home Assistant custom integration for manual gas and water meter reading entry with OCR, projection, and cost tracking",
+            "description": "Home Assistant add-on and custom integration for manual gas and water meter reading entry with OCR, projection, and cost tracking",
             "licenses": [
                 {
                     "license": {
@@ -46,6 +46,32 @@
                 }
             ],
             "scope": "optional"
+        },
+        {
+            "type": "operating-system",
+            "name": "alpine-linux",
+            "description": "Alpine Linux base image (via HA add-on base)",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "scope": "required"
+        },
+        {
+            "type": "library",
+            "name": "bashio",
+            "description": "Home Assistant add-on bash scripting helper",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Apache-2.0"
+                    }
+                }
+            ],
+            "scope": "required"
         },
         {
             "type": "library",
@@ -87,6 +113,48 @@
                 }
             ],
             "purl": "pkg:pypi/pytest-homeassistant-custom-component",
+            "scope": "excluded"
+        },
+        {
+            "type": "library",
+            "name": "pytest-cov",
+            "version": ">=6.0.0",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:pypi/pytest-cov",
+            "scope": "excluded"
+        },
+        {
+            "type": "library",
+            "name": "pytest-timeout",
+            "version": ">=2.3.0",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:pypi/pytest-timeout",
+            "scope": "excluded"
+        },
+        {
+            "type": "library",
+            "name": "ruff",
+            "version": ">=0.9.0",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:pypi/ruff",
             "scope": "excluded"
         }
     ]

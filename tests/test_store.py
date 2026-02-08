@@ -5,22 +5,23 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
-from homeassistant.core import HomeAssistant
-
 from custom_components.gas_water_meter.store import MeterStore
+from homeassistant.core import HomeAssistant
 
 from .conftest import MOCK_STORE_DATA
 
 
 async def test_load_existing_data(hass: HomeAssistant) -> None:
     """Test loading existing data from storage."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=MOCK_STORE_DATA,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=MOCK_STORE_DATA,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         store = MeterStore(hass, "test_entry_id")
         data = await store.async_load("gas", "Kitchen", "GAS-12345", "EUR")
@@ -33,13 +34,16 @@ async def test_load_existing_data(hass: HomeAssistant) -> None:
 
 async def test_load_empty_store(hass: HomeAssistant) -> None:
     """Test loading from empty storage creates defaults."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=None,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
-    ) as mock_save:
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ) as mock_save,
+    ):
         store = MeterStore(hass, "test_entry_id")
         data = await store.async_load("water", "Garden", "WAT-67890", "CHF")
 
@@ -55,13 +59,16 @@ async def test_load_empty_store(hass: HomeAssistant) -> None:
 
 async def test_add_reading(hass: HomeAssistant) -> None:
     """Test adding a meter reading."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=None,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
-    ) as mock_save:
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
+    ):
         store = MeterStore(hass, "test_entry_id")
         await store.async_load("gas", "Kitchen", "GAS-12345", "EUR")
 
@@ -79,12 +86,15 @@ async def test_add_reading(hass: HomeAssistant) -> None:
 
 async def test_readings_sorted_by_timestamp(hass: HomeAssistant) -> None:
     """Test that readings are kept sorted by timestamp."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=None,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         store = MeterStore(hass, "test_entry_id")
         await store.async_load("gas", "Kitchen", "GAS-12345", "EUR")
@@ -101,12 +111,15 @@ async def test_readings_sorted_by_timestamp(hass: HomeAssistant) -> None:
 
 async def test_add_price(hass: HomeAssistant) -> None:
     """Test adding a price entry."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=None,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         store = MeterStore(hass, "test_entry_id")
         await store.async_load("gas", "Kitchen", "GAS-12345", "EUR")
@@ -119,12 +132,15 @@ async def test_add_price(hass: HomeAssistant) -> None:
 
 async def test_get_last_and_previous_reading(hass: HomeAssistant) -> None:
     """Test getting last and previous readings."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=MOCK_STORE_DATA,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=MOCK_STORE_DATA,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         store = MeterStore(hass, "test_entry_id")
         await store.async_load("gas", "Kitchen", "GAS-12345", "EUR")
@@ -144,12 +160,15 @@ async def test_get_last_and_previous_reading(hass: HomeAssistant) -> None:
 
 async def test_get_current_price(hass: HomeAssistant) -> None:
     """Test getting the current active price."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=MOCK_STORE_DATA,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=MOCK_STORE_DATA,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         store = MeterStore(hass, "test_entry_id")
         await store.async_load("gas", "Kitchen", "GAS-12345", "EUR")
@@ -161,12 +180,15 @@ async def test_get_current_price(hass: HomeAssistant) -> None:
 
 async def test_get_price_at_date(hass: HomeAssistant) -> None:
     """Test getting the price valid at a specific date."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=MOCK_STORE_DATA,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=MOCK_STORE_DATA,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         store = MeterStore(hass, "test_entry_id")
         await store.async_load("gas", "Kitchen", "GAS-12345", "EUR")
@@ -184,12 +206,15 @@ async def test_get_price_at_date(hass: HomeAssistant) -> None:
 
 async def test_no_readings_returns_none(hass: HomeAssistant) -> None:
     """Test that empty store returns None for readings."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=None,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         store = MeterStore(hass, "test_entry_id")
         await store.async_load("gas", "Kitchen", "GAS-12345", "EUR")

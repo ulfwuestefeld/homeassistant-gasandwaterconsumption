@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
+from custom_components.gas_water_meter.const import DOMAIN
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.const import EntityCategory, UnitOfVolume
+from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant
-
-from custom_components.gas_water_meter.const import DOMAIN, METER_TYPE_GAS, METER_TYPE_WATER
 
 from .conftest import MOCK_GAS_CONFIG, MOCK_STORE_DATA, MOCK_WATER_CONFIG
 
@@ -25,12 +25,15 @@ async def _setup_entry(
     store_data: dict | None = None,
 ) -> MockConfigEntry:
     """Set up a config entry for testing."""
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=store_data or MOCK_STORE_DATA,
-    ), patch(
-        "custom_components.gas_water_meter.store.Store.async_save",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_load",
+            return_value=store_data or MOCK_STORE_DATA,
+        ),
+        patch(
+            "custom_components.gas_water_meter.store.Store.async_save",
+            new_callable=AsyncMock,
+        ),
     ):
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -45,9 +48,7 @@ async def _setup_entry(
 
 async def test_gas_reading_sensor(hass: HomeAssistant) -> None:
     """Test the gas meter reading sensor has correct attributes."""
-    entry = await _setup_entry(
-        hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345"
-    )
+    await _setup_entry(hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345")
 
     # Find the reading sensor
     states = hass.states.async_all("sensor")
@@ -66,7 +67,7 @@ async def test_water_reading_sensor(hass: HomeAssistant) -> None:
     """Test the water meter reading sensor has water device class."""
     water_store_data = {**MOCK_STORE_DATA, "meter_type": "water"}
 
-    entry = await _setup_entry(
+    await _setup_entry(
         hass,
         MOCK_WATER_CONFIG,
         "gas_water_meter_water_WAT-67890",
@@ -84,9 +85,7 @@ async def test_water_reading_sensor(hass: HomeAssistant) -> None:
 
 async def test_consumption_sensor(hass: HomeAssistant) -> None:
     """Test the consumption sensor shows the delta."""
-    entry = await _setup_entry(
-        hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345"
-    )
+    await _setup_entry(hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345")
 
     states = hass.states.async_all("sensor")
     consumption_states = [s for s in states if s.entity_id.endswith("_last_consumption")]
@@ -100,9 +99,7 @@ async def test_consumption_sensor(hass: HomeAssistant) -> None:
 
 async def test_projection_sensors(hass: HomeAssistant) -> None:
     """Test projection sensors have values when enough data exists."""
-    entry = await _setup_entry(
-        hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345"
-    )
+    await _setup_entry(hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345")
 
     states = hass.states.async_all("sensor")
     daily_avg = [s for s in states if s.entity_id.endswith("_daily_average_consumption")]
@@ -122,9 +119,7 @@ async def test_projection_sensors(hass: HomeAssistant) -> None:
 
 async def test_cost_sensors(hass: HomeAssistant) -> None:
     """Test cost sensors have values when prices are configured."""
-    entry = await _setup_entry(
-        hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345"
-    )
+    await _setup_entry(hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345")
 
     states = hass.states.async_all("sensor")
     current_price = [s for s in states if s.entity_id.endswith("_current_price")]
@@ -148,7 +143,7 @@ async def test_empty_store_sensors_unknown(hass: HomeAssistant) -> None:
         "prices": [],
     }
 
-    entry = await _setup_entry(
+    await _setup_entry(
         hass,
         MOCK_GAS_CONFIG,
         "gas_water_meter_gas_GAS-12345",
@@ -165,15 +160,10 @@ async def test_empty_store_sensors_unknown(hass: HomeAssistant) -> None:
 
 async def test_twelve_sensors_created(hass: HomeAssistant) -> None:
     """Test that exactly 12 sensors are created per meter."""
-    entry = await _setup_entry(
-        hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345"
-    )
+    await _setup_entry(hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345")
 
     states = hass.states.async_all("sensor")
     # Filter to only sensors from our integration
-    our_sensors = [
-        s for s in states
-        if s.entity_id.startswith("sensor.gas_meter")
-    ]
+    our_sensors = [s for s in states if s.entity_id.startswith("sensor.gas_meter")]
 
     assert len(our_sensors) == 12

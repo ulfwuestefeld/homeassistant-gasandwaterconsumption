@@ -1,24 +1,24 @@
-# Gas & Water Meter - Home Assistant Custom Integration
+# Gas & Water Meter - Home Assistant Add-on
 
-A Home Assistant custom integration for manually recording gas and water meter readings with optional photo capture and OCR, consumption projection, and cost tracking.
+A Home Assistant add-on that provides a custom integration for manually recording gas and water meter readings with optional photo capture and OCR, consumption projection, and cost tracking.
 
 ## Features
 
 - **Manual meter reading entry** via Home Assistant services
-- **Multiple meters** -- add as many gas and/or water meters as needed
-- **Energy Dashboard compatible** -- sensors use `state_class: total_increasing` with proper device classes
-- **Photo capture** -- attach photos to meter readings for documentation
-- **Tesseract OCR** -- optionally extract meter readings and serial numbers from photos
-- **Consumption projection** -- daily average, monthly, and yearly projections based on historical data
-- **Price tracking** -- record current and historical prices for cost calculations
-- **Cost sensors** -- last period cost, monthly and yearly projected costs
-- **Full i18n** -- English and German translations
+- **Multiple meters** — add as many gas and/or water meters as needed
+- **Energy Dashboard compatible** — sensors use `state_class: total_increasing` with proper device classes
+- **Photo capture** — attach photos to meter readings for documentation
+- **Tesseract OCR** — extract meter readings and serial numbers from photos (pre-installed in add-on)
+- **Consumption projection** — daily average, monthly, and yearly projections based on historical data
+- **Price tracking** — record current and historical prices for cost calculations
+- **Cost sensors** — last period cost, monthly and yearly projected costs
+- **Full i18n** — English and German translations
 
 ## Sensors (per meter)
 
 | Sensor | Description |
 |--------|-------------|
-| Meter reading | Current meter reading (m³) -- Energy Dashboard |
+| Meter reading | Current meter reading (m³) — Energy Dashboard |
 | Meter number | Physical meter serial number |
 | Last entry date | When the last reading was recorded |
 | Last consumption | Delta between last two readings (m³) |
@@ -33,45 +33,32 @@ A Home Assistant custom integration for manually recording gas and water meter r
 
 ## Installation
 
-### HACS (Recommended)
+### Prerequisites
 
-1. Add this repository as a custom repository in HACS
-2. Search for "Gas & Water Meter" and install
-3. Restart Home Assistant
+This is a **private repository**. To use it as an add-on repository in Home Assistant, you need an SSH deploy key configured:
 
-### Manual Installation
+1. Add the deploy key's **private key** to your Home Assistant instance at `/ssl/` or via the SSH add-on
+2. Configure SSH in Home Assistant to use the deploy key for `github.com`
 
-1. Copy the `custom_components/gas_water_meter` directory to your Home Assistant `custom_components` folder
-2. Restart Home Assistant
+### Adding the Add-on Repository
 
-### Tesseract OCR (Optional)
+1. In Home Assistant, go to **Settings** → **Add-ons** → **Add-on Store**
+2. Click the **⋮** menu (top right) → **Repositories**
+3. Add the repository URL: `ssh://git@github.com/ulfwuestefeld/gasandwater.git`
+4. Click **Add** → **Close**
+5. Find **Gas & Water Meter** in the add-on store and click **Install**
 
-To use the photo OCR feature, install Tesseract:
+### Activating the Integration
 
-**Home Assistant OS (via SSH Add-on):**
-```bash
-apk add tesseract-ocr
-```
-
-**Docker:**
-```bash
-apt-get install tesseract-ocr
-```
-
-**Linux (Debian/Ubuntu):**
-```bash
-sudo apt-get install tesseract-ocr
-```
-
-**macOS:**
-```bash
-brew install tesseract
-```
-
-**Windows:**
-Download and install from: https://github.com/UB-Mannheim/tesseract/wiki
+1. **Start** the Gas & Water Meter add-on
+2. Check the add-on logs — it will confirm the integration files were installed
+3. **Restart Home Assistant** (Settings → System → Restart)
+4. Go to **Settings** → **Devices & Services** → **Add Integration**
+5. Search for "Gas & Water Meter"
 
 ## Configuration
+
+After restarting Home Assistant:
 
 1. Go to **Settings** > **Devices & Services** > **Add Integration**
 2. Search for "Gas & Water Meter"
@@ -130,10 +117,55 @@ The **Meter reading** sensor is compatible with the Home Assistant Energy Dashbo
 2. Add the gas meter sensor under **Gas consumption**
 3. Add the water meter sensor under **Water consumption**
 
+## Updating
+
+When a new version is available:
+
+1. Update the add-on in the Add-on Store
+2. Start or restart the add-on (updated integration files are copied automatically)
+3. Restart Home Assistant to apply the changes
+
+## Repository Structure
+
+```
+├── repository.yaml              # Add-on repository metadata
+├── gas-water-meter/             # The add-on
+│   ├── config.yaml              # Add-on configuration
+│   ├── Dockerfile               # Container build (includes Tesseract)
+│   ├── build.yaml               # Multi-architecture build config
+│   ├── run.sh                   # Startup script (copies integration files)
+│   ├── DOCS.md                  # Add-on documentation
+│   ├── CHANGELOG.md             # Add-on changelog
+│   ├── icon.png / logo.png      # Add-on branding
+│   ├── translations/            # Add-on translations
+│   └── custom_components/       # The HA custom integration
+│       └── gas_water_meter/
+├── tests/                       # Unit tests
+├── .github/workflows/           # CI (lint + test)
+├── pyproject.toml               # Python project config
+└── requirements_test.txt        # Test dependencies
+```
+
+## Development
+
+### Running Tests
+
+```bash
+pip install -r requirements_test.txt
+pytest tests/ -v
+```
+
+### Linting
+
+```bash
+ruff check gas-water-meter/custom_components/ tests/
+ruff format --check gas-water-meter/custom_components/ tests/
+```
+
 ## License
 
 MIT License. See [FOSS.md](FOSS.md) for third-party licenses.
 
 ## Version
 
-0.0.1 -- Initial release. See [CHANGELOG.md](CHANGELOG.md) for details.
+0.0.1 — Initial release as add-on. See [CHANGELOG.md](CHANGELOG.md) for details.

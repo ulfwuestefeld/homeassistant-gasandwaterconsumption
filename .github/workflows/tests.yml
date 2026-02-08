@@ -22,10 +22,10 @@ jobs:
         run: pip install ruff
 
       - name: Run ruff check
-        run: ruff check custom_components/ tests/
+        run: ruff check gas-water-meter/custom_components/ tests/
 
       - name: Run ruff format check
-        run: ruff format --check custom_components/ tests/
+        run: ruff format --check gas-water-meter/custom_components/ tests/
 
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -57,7 +57,7 @@ jobs:
           pytest tests/ \
             --timeout=30 \
             -v \
-            --cov=custom_components/gas_water_meter \
+            --cov=gas-water-meter/custom_components/gas_water_meter \
             --cov-report=term-missing \
             --cov-report=xml
 

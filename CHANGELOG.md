@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Gas & Water Meter integration will be documented in this file.
+All notable changes to the Gas & Water Meter project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release
+- Initial release as Home Assistant add-on (replaces HACS-based distribution)
+- Add-on automatically installs custom integration into Home Assistant config
+- Tesseract OCR pre-installed in add-on container
 - Config flow for adding gas and water meters with name, number, and currency
 - Options flow for updating meter number and currency
 - 12 sensor entities per meter:
@@ -20,11 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Service `record_reading` for recording meter readings with optional photo
 - Service `set_price` for setting consumption prices with historical tracking
 - Service `read_meter_image` for OCR extraction without recording
-- Tesseract OCR support for extracting meter readings from photos
-- Image preprocessing pipeline (grayscale, contrast, threshold)
-- Graceful degradation when Tesseract is not installed
+- Graceful degradation when Tesseract is not available
 - Persistent storage via HA Store helper (readings, prices, image references)
 - Multi-meter support (multiple gas and water meters)
 - Visual distinction between gas and water meters (icons, device class)
 - English and German translations
-- Unit tests for config flow, sensors, storage, services, coordinator, and OCR
+- GitHub Actions CI (lint + test)
+- SSH deploy key support for private repository access

@@ -1,0 +1,163 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Z\u00e4hler hinzuf\u00fcgen",
+                "description": "Konfigurieren Sie einen Gas- oder Wasserz\u00e4hler f\u00fcr die manuelle Eingabe von Z\u00e4hlerst\u00e4nden.",
+                "data": {
+                    "meter_type": "Z\u00e4hlertyp",
+                    "meter_name": "Z\u00e4hlername",
+                    "meter_number": "Z\u00e4hlernummer",
+                    "currency": "W\u00e4hrung"
+                },
+                "data_description": {
+                    "meter_type": "W\u00e4hlen Sie, ob es sich um einen Gas- oder Wasserz\u00e4hler handelt.",
+                    "meter_name": "Ein beschreibender Name f\u00fcr diesen Z\u00e4hler (z.B. K\u00fcche, Garten).",
+                    "meter_number": "Die Seriennummer auf Ihrem physischen Z\u00e4hler.",
+                    "currency": "W\u00e4hrung f\u00fcr Kostenberechnungen."
+                }
+            }
+        },
+        "error": {
+            "empty_meter_number": "Die Z\u00e4hlernummer darf nicht leer sein.",
+            "empty_meter_name": "Der Z\u00e4hlername darf nicht leer sein."
+        },
+        "abort": {
+            "already_configured": "Dieser Z\u00e4hler ist bereits konfiguriert."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Z\u00e4hler-Optionen",
+                "data": {
+                    "meter_number": "Z\u00e4hlernummer",
+                    "currency": "W\u00e4hrung"
+                },
+                "data_description": {
+                    "meter_number": "Z\u00e4hlernummer aktualisieren (z.B. nach Z\u00e4hlerwechsel).",
+                    "currency": "W\u00e4hrung f\u00fcr Kostenberechnungen."
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "reading": {
+                "name": "Z\u00e4hlerstand"
+            },
+            "meter_number": {
+                "name": "Z\u00e4hlernummer"
+            },
+            "last_entry_date": {
+                "name": "Letzter Eintrag"
+            },
+            "consumption": {
+                "name": "Letzter Verbrauch"
+            },
+            "days_between": {
+                "name": "Tage zwischen Ablesungen"
+            },
+            "daily_average": {
+                "name": "T\u00e4glicher Durchschnittsverbrauch"
+            },
+            "monthly_projection": {
+                "name": "Monatshochrechnung"
+            },
+            "yearly_projection": {
+                "name": "Jahreshochrechnung"
+            },
+            "current_price": {
+                "name": "Aktueller Preis"
+            },
+            "last_period_cost": {
+                "name": "Letzte Periodenkosten"
+            },
+            "monthly_projected_cost": {
+                "name": "Monatliche Kostenprognose"
+            },
+            "yearly_projected_cost": {
+                "name": "J\u00e4hrliche Kostenprognose"
+            }
+        }
+    },
+    "services": {
+        "record_reading": {
+            "name": "Z\u00e4hlerstand erfassen",
+            "description": "Einen neuen Z\u00e4hlerstand erfassen, optional mit Foto f\u00fcr OCR-Erkennung.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Z\u00e4hler",
+                    "description": "Der Z\u00e4hler, f\u00fcr den der Stand erfasst werden soll."
+                },
+                "meter_reading": {
+                    "name": "Z\u00e4hlerstand",
+                    "description": "Der aktuelle Z\u00e4hlerstand in m\u00b3. Optional, wenn ein Bild f\u00fcr OCR bereitgestellt wird."
+                },
+                "meter_number": {
+                    "name": "Z\u00e4hlernummer",
+                    "description": "Die konfigurierte Z\u00e4hlernummer f\u00fcr diese Ablesung \u00fcberschreiben."
+                },
+                "timestamp": {
+                    "name": "Zeitstempel",
+                    "description": "Datum und Uhrzeit der Ablesung. Standard ist jetzt."
+                },
+                "image": {
+                    "name": "Bild",
+                    "description": "Dateipfad zu einem Foto des Z\u00e4hlers f\u00fcr OCR-Erkennung."
+                }
+            }
+        },
+        "set_price": {
+            "name": "Preis festlegen",
+            "description": "Einen neuen Verbrauchspreis pro m\u00b3 festlegen. Historische Preise bleiben erhalten.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Z\u00e4hler",
+                    "description": "Der Z\u00e4hler, f\u00fcr den der Preis festgelegt werden soll."
+                },
+                "price_per_unit": {
+                    "name": "Preis pro m\u00b3",
+                    "description": "Der Preis pro Kubikmeter."
+                },
+                "valid_from": {
+                    "name": "G\u00fcltig ab",
+                    "description": "Datum, ab dem dieser Preis gilt. Standard ist heute."
+                }
+            }
+        },
+        "read_meter_image": {
+            "name": "Z\u00e4hlerbild auslesen",
+            "description": "Z\u00e4hlerstand und Z\u00e4hlernummer per OCR aus einem Foto extrahieren, ohne einen Eintrag zu erstellen.",
+            "fields": {
+                "image": {
+                    "name": "Bild",
+                    "description": "Dateipfad zum Z\u00e4hlerfoto."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "entry_not_found": {
+            "message": "Konfigurationseintrag nicht gefunden."
+        },
+        "entry_not_loaded": {
+            "message": "Konfigurationseintrag ist nicht geladen."
+        },
+        "image_not_found": {
+            "message": "Bilddatei nicht gefunden am angegebenen Pfad."
+        },
+        "ocr_unavailable": {
+            "message": "Tesseract OCR ist nicht verf\u00fcgbar. Bitte installieren Sie tesseract-ocr auf Ihrem System."
+        },
+        "ocr_failed": {
+            "message": "Der Z\u00e4hlerstand konnte nicht aus dem Bild extrahiert werden. Bitte geben Sie den Wert manuell ein."
+        },
+        "reading_required": {
+            "message": "Ein Z\u00e4hlerstand ist erforderlich."
+        },
+        "reading_decreased": {
+            "message": "Der neue Z\u00e4hlerstand muss gr\u00f6\u00dfer oder gleich dem letzten Z\u00e4hlerstand sein."
+        }
+    }
+}

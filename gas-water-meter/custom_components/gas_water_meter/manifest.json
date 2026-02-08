@@ -1,0 +1,13 @@
+{
+    "domain": "gas_water_meter",
+    "name": "Gas & Water Meter",
+    "codeowners": [],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/ulfwuestefeld/gasandwater",
+    "integration_type": "service",
+    "iot_class": "calculated",
+    "issue_tracker": "https://github.com/ulfwuestefeld/gasandwater/issues",
+    "requirements": ["pytesseract>=0.3.10"],
+    "version": "0.0.1"
+}

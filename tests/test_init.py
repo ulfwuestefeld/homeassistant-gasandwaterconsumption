@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
-
+from custom_components.gas_water_meter.const import DOMAIN
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 
-from custom_components.gas_water_meter.const import DOMAIN
-
-from .conftest import MOCK_GAS_CONFIG, MOCK_STORE_DATA
+from .conftest import MOCK_GAS_CONFIG
 
 try:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -58,9 +55,7 @@ async def test_unload_entry(hass: HomeAssistant, mock_store_load, mock_store_sav
     assert entry.state is config_entries.ConfigEntryState.NOT_LOADED
 
 
-async def test_setup_entry_empty_store(
-    hass: HomeAssistant, mock_store_empty, mock_store_save
-) -> None:
+async def test_setup_entry_empty_store(hass: HomeAssistant, mock_store_empty, mock_store_save) -> None:
     """Test setup with empty store (first run)."""
     entry = MockConfigEntry(
         domain=DOMAIN,

@@ -1,6 +1,6 @@
 # Free and Open Source Software (FOSS) Dependencies
 
-This document lists all third-party open source components used by the Gas & Water Meter integration.
+This document lists all third-party open source components used by the Gas & Water Meter add-on and integration.
 
 ## Runtime Dependencies
 
@@ -8,6 +8,13 @@ This document lists all third-party open source components used by the Gas & Wat
 |-----------|---------|---------|-----|
 | pytesseract | >= 0.3.10 | Apache-2.0 | https://github.com/madmaze/pytesseract |
 | tesseract-ocr (system) | >= 4.0 | Apache-2.0 | https://github.com/tesseract-ocr/tesseract |
+
+## Add-on Container Dependencies
+
+| Component | License | Usage |
+|-----------|---------|-------|
+| Alpine Linux | MIT | Add-on base image (via HA base image) |
+| bashio | Apache-2.0 | Add-on shell scripting helper |
 
 ## Home Assistant Core Dependencies (always available)
 
@@ -25,6 +32,9 @@ This document lists all third-party open source components used by the Gas & Wat
 | pytest | >= 8.0.0 | MIT | https://github.com/pytest-dev/pytest |
 | pytest-asyncio | >= 0.23.0 | Apache-2.0 | https://github.com/pytest-dev/pytest-asyncio |
 | pytest-homeassistant-custom-component | >= 0.13.0 | MIT | https://github.com/MatthewFlamworthy/pytest-homeassistant-custom-component |
+| pytest-cov | >= 6.0.0 | MIT | https://github.com/pytest-dev/pytest-cov |
+| pytest-timeout | >= 2.3.0 | MIT | https://github.com/pytest-dev/pytest-timeout |
+| ruff | >= 0.9.0 | MIT | https://github.com/astral-sh/ruff |
 
 ## License Compatibility
 

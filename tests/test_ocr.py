@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
-import pytest
-
 from custom_components.gas_water_meter.ocr import (
     extract_meter_number,
     extract_meter_reading,

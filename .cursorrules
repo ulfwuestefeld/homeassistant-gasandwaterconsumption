@@ -12,10 +12,11 @@ Write correct, up-to-date, and bug-free code.
 You always write unit tests.
 You use mocks for mocking external systems.
 
-# Project: Gas & Water Meter Integration
+# Project: Gas & Water Meter Add-on
 
 - **Domain**: `gas_water_meter`
-- **Type**: Home Assistant custom integration (service, calculated)
+- **Type**: Home Assistant Add-on containing a custom integration (service, calculated)
+- **Distribution**: Private GitHub repository, installed via SSH deploy key as add-on repository
 - **Version**: 0.0.1
 - **Python**: >= 3.12
 - **Pattern**: Async-first, config-entry-based, coordinator pattern (no polling)
@@ -24,20 +25,34 @@ You use mocks for mocking external systems.
 ## Structure
 
 ```
-custom_components/gas_water_meter/
-    __init__.py          # Entry setup, service registration
-    config_flow.py       # UI config flow + options flow
-    const.py             # Constants, icon mappings
-    coordinator.py       # Data coordinator (projection + cost calculation)
-    icons.json           # Entity icons
-    manifest.json        # Integration metadata
-    ocr.py               # Tesseract OCR wrapper
-    sensor.py            # 12 sensor entities per meter
-    services.yaml        # Service definitions
-    store.py             # Persistent storage (readings, prices, images)
-    strings.json         # Translation source
-    translations/        # en.json, de.json
-tests/                   # Unit tests (pytest + pytest-homeassistant-custom-component)
+├── repository.yaml                  # Add-on repository metadata
+├── gas-water-meter/                 # The add-on
+│   ├── config.yaml                  # Add-on configuration
+│   ├── Dockerfile                   # Container build (includes Tesseract)
+│   ├── build.yaml                   # Multi-architecture build config
+│   ├── run.sh                       # Startup script (copies integration to HA config)
+│   ├── DOCS.md                      # Add-on documentation
+│   ├── CHANGELOG.md                 # Add-on changelog
+│   ├── icon.png / logo.png          # Add-on branding
+│   ├── translations/                # Add-on translations (en, de)
+│   └── custom_components/           # The HA custom integration
+│       └── gas_water_meter/
+│           ├── __init__.py          # Entry setup, service registration
+│           ├── config_flow.py       # UI config flow + options flow
+│           ├── const.py             # Constants, icon mappings
+│           ├── coordinator.py       # Data coordinator (projection + cost)
+│           ├── icons.json           # Entity icons
+│           ├── manifest.json        # Integration metadata
+│           ├── ocr.py               # Tesseract OCR wrapper
+│           ├── sensor.py            # 12 sensor entities per meter
+│           ├── services.yaml        # Service definitions
+│           ├── store.py             # Persistent storage
+│           ├── strings.json         # Translation source
+│           └── translations/        # en.json, de.json
+├── tests/                           # Unit tests (pytest)
+├── .github/workflows/tests.yml      # CI: lint + test
+├── pyproject.toml                   # Python project config (pythonpath: gas-water-meter)
+└── requirements_test.txt            # Test dependencies
 ```
 
 ## Key Design
@@ -49,15 +64,17 @@ tests/                   # Unit tests (pytest + pytest-homeassistant-custom-comp
 - Storage: homeassistant.helpers.storage.Store (JSON, one file per entry)
 - Energy Dashboard: reading sensor with state_class TOTAL_INCREASING
 - Gas vs Water: Distinguished by device_class, icons, device name, persistence
+- Add-on copies integration files to /config/custom_components/ on startup
+- Tests use `pythonpath = ["gas-water-meter"]` in pyproject.toml
 
 # Quality Checklist
 
 After each significant change, verify:
 
-- [ ] Version history updated (`CHANGELOG.md`, `manifest.json`)
+- [ ] Version history updated (`CHANGELOG.md`, `gas-water-meter/CHANGELOG.md`, `manifest.json`, `gas-water-meter/config.yaml`)
 - [ ] Tests pass and cover new functionality
 - [ ] SBOM updated if dependencies changed (`SBOM.json`, `SBOM.md`)
 - [ ] FOSS list updated if open source dependencies changed (`FOSS.md`)
 - [ ] Licenses of third-party components are compatible (check `FOSS.md`)
-- [ ] Translations updated for all new strings (`strings.json`, `translations/en.json`, `translations/de.json`)
+- [ ] Translations updated for all new strings
 - [ ] .cursorrules is still accurate

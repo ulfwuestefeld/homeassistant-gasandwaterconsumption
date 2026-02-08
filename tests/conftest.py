@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
-from homeassistant.core import HomeAssistant
-
 from custom_components.gas_water_meter.const import (
     CONF_CURRENCY,
     CONF_METER_NAME,
     CONF_METER_NUMBER,
     CONF_METER_TYPE,
-    DOMAIN,
     METER_TYPE_GAS,
     METER_TYPE_WATER,
 )
@@ -109,11 +105,12 @@ def mock_store_empty():
 @pytest.fixture
 def mock_tesseract_available():
     """Mock tesseract as available."""
-    with patch(
-        "custom_components.gas_water_meter.ocr._TESSERACT_AVAILABLE", True
-    ), patch(
-        "custom_components.gas_water_meter.ocr.is_tesseract_available",
-        return_value=True,
+    with (
+        patch("custom_components.gas_water_meter.ocr._TESSERACT_AVAILABLE", True),
+        patch(
+            "custom_components.gas_water_meter.ocr.is_tesseract_available",
+            return_value=True,
+        ),
     ):
         yield
 
@@ -121,10 +118,11 @@ def mock_tesseract_available():
 @pytest.fixture
 def mock_tesseract_unavailable():
     """Mock tesseract as unavailable."""
-    with patch(
-        "custom_components.gas_water_meter.ocr._TESSERACT_AVAILABLE", False
-    ), patch(
-        "custom_components.gas_water_meter.ocr.is_tesseract_available",
-        return_value=False,
+    with (
+        patch("custom_components.gas_water_meter.ocr._TESSERACT_AVAILABLE", False),
+        patch(
+            "custom_components.gas_water_meter.ocr.is_tesseract_available",
+            return_value=False,
+        ),
     ):
         yield
