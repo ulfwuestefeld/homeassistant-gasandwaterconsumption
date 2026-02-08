@@ -1,0 +1,47 @@
+{
+    "entity": {
+        "sensor": {
+            "reading": {
+                "default": "mdi:meter-gas"
+            },
+            "meter_number": {
+                "default": "mdi:identifier"
+            },
+            "last_entry_date": {
+                "default": "mdi:calendar-clock"
+            },
+            "consumption": {
+                "default": "mdi:gas-burner"
+            },
+            "days_between": {
+                "default": "mdi:calendar-range"
+            },
+            "daily_average": {
+                "default": "mdi:chart-line"
+            },
+            "monthly_projection": {
+                "default": "mdi:chart-areaspline"
+            },
+            "yearly_projection": {
+                "default": "mdi:chart-areaspline"
+            },
+            "current_price": {
+                "default": "mdi:currency-eur"
+            },
+            "last_period_cost": {
+                "default": "mdi:cash"
+            },
+            "monthly_projected_cost": {
+                "default": "mdi:cash-multiple"
+            },
+            "yearly_projected_cost": {
+                "default": "mdi:cash-multiple"
+            }
+        }
+    },
+    "services": {
+        "record_reading": "mdi:counter",
+        "set_price": "mdi:currency-eur",
+        "read_meter_image": "mdi:camera"
+    }
+}

@@ -1,0 +1,63 @@
+# Introduction
+
+You are a premier developer expert in Python and Home Assistant custom integration development.
+You use state of the art development techniques and architecture.
+
+Always use the latest stable version of dependencies.
+
+Follow the user's requirements carefully and to the letter.
+First think step-by-step - describe your plan for API and structure and data flow.
+Confirm the plan, then write the code.
+Write correct, up-to-date, and bug-free code.
+You always write unit tests.
+You use mocks for mocking external systems.
+
+# Project: Gas & Water Meter Integration
+
+- **Domain**: `gas_water_meter`
+- **Type**: Home Assistant custom integration (service, calculated)
+- **Version**: 0.0.1
+- **Python**: >= 3.12
+- **Pattern**: Async-first, config-entry-based, coordinator pattern (no polling)
+- **HA Skill**: Use the `homeassistant-development` Cursor skill for HA patterns
+
+## Structure
+
+```
+custom_components/gas_water_meter/
+    __init__.py          # Entry setup, service registration
+    config_flow.py       # UI config flow + options flow
+    const.py             # Constants, icon mappings
+    coordinator.py       # Data coordinator (projection + cost calculation)
+    icons.json           # Entity icons
+    manifest.json        # Integration metadata
+    ocr.py               # Tesseract OCR wrapper
+    sensor.py            # 12 sensor entities per meter
+    services.yaml        # Service definitions
+    store.py             # Persistent storage (readings, prices, images)
+    strings.json         # Translation source
+    translations/        # en.json, de.json
+tests/                   # Unit tests (pytest + pytest-homeassistant-custom-component)
+```
+
+## Key Design
+
+- Each config entry = one physical meter (gas or water)
+- 12 sensors per meter: core (5) + projection (3) + cost (4)
+- Services: record_reading, set_price, read_meter_image
+- OCR: Tesseract via pytesseract (optional, graceful degradation)
+- Storage: homeassistant.helpers.storage.Store (JSON, one file per entry)
+- Energy Dashboard: reading sensor with state_class TOTAL_INCREASING
+- Gas vs Water: Distinguished by device_class, icons, device name, persistence
+
+# Quality Checklist
+
+After each significant change, verify:
+
+- [ ] Version history updated (`CHANGELOG.md`, `manifest.json`)
+- [ ] Tests pass and cover new functionality
+- [ ] SBOM updated if dependencies changed (`SBOM.json`, `SBOM.md`)
+- [ ] FOSS list updated if open source dependencies changed (`FOSS.md`)
+- [ ] Licenses of third-party components are compatible (check `FOSS.md`)
+- [ ] Translations updated for all new strings (`strings.json`, `translations/en.json`, `translations/de.json`)
+- [ ] .cursorrules is still accurate

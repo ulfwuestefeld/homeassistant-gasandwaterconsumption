@@ -1,0 +1,57 @@
+record_reading:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: gas_water_meter
+    meter_reading:
+      required: false
+      example: 1234.567
+      selector:
+        number:
+          min: 0
+          step: 0.001
+          mode: box
+    meter_number:
+      required: false
+      example: "12345-678"
+      selector:
+        text:
+    timestamp:
+      required: false
+      selector:
+        datetime:
+    image:
+      required: false
+      example: "/media/meter_photo.jpg"
+      selector:
+        text:
+
+set_price:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: gas_water_meter
+    price_per_unit:
+      required: true
+      example: 1.85
+      selector:
+        number:
+          min: 0
+          step: 0.0001
+          mode: box
+    valid_from:
+      required: false
+      selector:
+        date:
+
+read_meter_image:
+  fields:
+    image:
+      required: true
+      example: "/media/meter_photo.jpg"
+      selector:
+        text:
