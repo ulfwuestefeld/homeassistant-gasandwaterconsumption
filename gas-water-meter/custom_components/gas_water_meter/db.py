@@ -293,6 +293,20 @@ class MeterDatabase:
         row = await cursor.fetchone()
         return dict(row) if row else None
 
+    async def async_get_first_reading_for_meter(self, entry_id: str, meter_number: str) -> dict[str, Any] | None:
+        """Return the oldest reading for a specific meter number.
+
+        Used for projection calculations after a meter change: only
+        readings from the current physical meter should be considered.
+        """
+        assert self._db is not None
+        cursor = await self._db.execute(
+            "SELECT * FROM readings WHERE entry_id = ? AND meter_number = ? ORDER BY timestamp ASC LIMIT 1",
+            (entry_id, meter_number),
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
     # ------------------------------------------------------------------
     # Prices - CRUD
     # ------------------------------------------------------------------
@@ -419,6 +433,8 @@ class MeterDatabase:
         """Compute per-period consumption from readings.
 
         Returns a list of dicts with timestamp, reading, consumption, days.
+        When the meter number changes between consecutive readings,
+        consumption resets to None (no delta across different meters).
         """
         readings = await self.async_get_readings(entry_id)
         stats: list[dict[str, Any]] = []
@@ -426,13 +442,16 @@ class MeterDatabase:
             entry: dict[str, Any] = {
                 "timestamp": r["timestamp"],
                 "reading": r["reading"],
+                "meter_number": r["meter_number"],
                 "consumption": None,
                 "days": None,
             }
             if i > 0:
                 prev = readings[i - 1]
-                entry["consumption"] = round(r["reading"] - prev["reading"], 3)
-                entry["days"] = _days_between_str(prev["timestamp"], r["timestamp"])
+                # Only compute consumption when the meter number is the same
+                if r["meter_number"] == prev["meter_number"]:
+                    entry["consumption"] = round(r["reading"] - prev["reading"], 3)
+                    entry["days"] = _days_between_str(prev["timestamp"], r["timestamp"])
             stats.append(entry)
         return stats
 

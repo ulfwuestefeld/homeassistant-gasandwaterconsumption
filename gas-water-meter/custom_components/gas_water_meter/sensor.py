@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory, UnitOfTime, UnitOfVolume
+from homeassistant.const import EntityCategory, UnitOfEnergy, UnitOfTime, UnitOfVolume
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -39,6 +39,7 @@ class MeterSensorDescription(SensorEntityDescription):
     gas_device_class: SensorDeviceClass | None = None
     water_device_class: SensorDeviceClass | None = None
     dynamic_unit: bool = False  # If True, use currency from coordinator data
+    meter_types: tuple[str, ...] | None = None  # None = all meter types
 
 
 def _gas_water_device_class(desc: MeterSensorDescription, meter_type: str) -> SensorDeviceClass | None:
@@ -50,7 +51,7 @@ def _gas_water_device_class(desc: MeterSensorDescription, meter_type: str) -> Se
     return desc.device_class
 
 
-# Sensor descriptions for all 12 sensors
+# Sensor descriptions -- 12 common sensors + 1 gas-only sensor
 SENSOR_DESCRIPTIONS: tuple[MeterSensorDescription, ...] = (
     # --- Core Sensors ---
     MeterSensorDescription(
@@ -84,6 +85,17 @@ SENSOR_DESCRIPTIONS: tuple[MeterSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=3,
         value_fn=lambda data: data.consumption,
+    ),
+    # Gas-only: energy consumption in kWh
+    MeterSensorDescription(
+        key="energy_consumption",
+        translation_key="energy_consumption",
+        device_class=SensorDeviceClass.ENERGY,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=3,
+        value_fn=lambda data: data.energy_consumption,
+        meter_types=(METER_TYPE_GAS,),
     ),
     MeterSensorDescription(
         key="days_between",
@@ -167,7 +179,12 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     meter_type = entry.data[CONF_METER_TYPE]
 
-    async_add_entities(MeterSensorEntity(coordinator, description, meter_type) for description in SENSOR_DESCRIPTIONS)
+    entities = [
+        MeterSensorEntity(coordinator, desc, meter_type)
+        for desc in SENSOR_DESCRIPTIONS
+        if desc.meter_types is None or meter_type in desc.meter_types
+    ]
+    async_add_entities(entities)
 
 
 class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
@@ -209,7 +226,7 @@ class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
             name=f"{device_prefix} - {meter_name}",
             manufacturer="Manual Entry",
             model=f"{meter_type.capitalize()} Meter",
-            sw_version="0.0.4",
+            sw_version="0.1.0",
         )
 
     @property
@@ -234,6 +251,9 @@ class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
         if self.entity_description.dynamic_unit and self.coordinator.data is not None:
             currency = self.coordinator.data.currency
             if self.entity_description.key == "current_price":
+                # Gas: price in ct/kWh, Water: price in EUR/m³
+                if self._meter_type == METER_TYPE_GAS:
+                    return "ct/kWh"
                 return f"{currency}/m\u00b3"
             return currency
         return self.entity_description.native_unit_of_measurement

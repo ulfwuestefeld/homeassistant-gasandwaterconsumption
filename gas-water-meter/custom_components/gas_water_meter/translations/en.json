@@ -16,6 +16,18 @@
                     "meter_number": "The serial number printed on your physical meter.",
                     "currency": "Currency for cost calculations."
                 }
+            },
+            "gas_params": {
+                "title": "Gas Conversion Factors",
+                "description": "Enter the calorific value and condition factor from your gas bill. These are used to convert m\u00b3 to kWh for cost calculation.",
+                "data": {
+                    "calorific_value": "Calorific value (kWh/m\u00b3)",
+                    "condition_factor": "Condition factor"
+                },
+                "data_description": {
+                    "calorific_value": "The calorific value (Brennwert) from your gas bill, typically around 11.465 kWh/m\u00b3.",
+                    "condition_factor": "The condition factor (Zustandszahl) from your gas bill, typically around 0.9684."
+                }
             }
         },
         "error": {
@@ -32,11 +44,15 @@
                 "title": "Meter Options",
                 "data": {
                     "meter_number": "Meter number",
-                    "currency": "Currency"
+                    "currency": "Currency",
+                    "calorific_value": "Calorific value (kWh/m\u00b3)",
+                    "condition_factor": "Condition factor"
                 },
                 "data_description": {
                     "meter_number": "Update the meter serial number (e.g. after meter replacement).",
-                    "currency": "Currency for cost calculations."
+                    "currency": "Currency for cost calculations.",
+                    "calorific_value": "The calorific value (Brennwert) from your gas bill.",
+                    "condition_factor": "The condition factor (Zustandszahl) from your gas bill."
                 }
             }
         }
@@ -54,6 +70,9 @@
             },
             "consumption": {
                 "name": "Last consumption"
+            },
+            "energy_consumption": {
+                "name": "Energy consumption"
             },
             "days_between": {
                 "name": "Days between readings"
@@ -110,15 +129,15 @@
         },
         "set_price": {
             "name": "Set price",
-            "description": "Set a new consumption price per m\u00b3. Historical prices are preserved.",
+            "description": "Set a new consumption price. For gas: ct/kWh, for water: EUR/m\u00b3. Historical prices are preserved.",
             "fields": {
                 "config_entry_id": {
                     "name": "Meter",
                     "description": "The meter to set the price for."
                 },
                 "price_per_unit": {
-                    "name": "Price per m\u00b3",
-                    "description": "The price per cubic meter."
+                    "name": "Price per unit",
+                    "description": "For gas: price in ct/kWh. For water: price in EUR/m\u00b3."
                 },
                 "valid_from": {
                     "name": "Valid from",

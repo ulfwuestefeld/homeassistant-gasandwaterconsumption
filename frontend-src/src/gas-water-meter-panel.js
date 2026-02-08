@@ -40,28 +40,42 @@ const TRANSLATIONS = {
     edit_reading_title: "Edit reading",
     confirm_delete_reading: "Really delete this reading?",
     price_title: "Record price",
-    price_label: "Price per m\u00b3",
-    price_placeholder: "e.g. 1.85",
+    price_label_gas: "Price (ct/kWh)",
+    price_label_water: "Price per m\u00b3",
+    price_placeholder_gas: "e.g. 8.45",
+    price_placeholder_water: "e.g. 1.85",
     valid_from: "Valid from",
     valid_to: "Valid to (empty = currently active)",
     price_history: "Price history",
     no_prices: "No prices recorded yet.",
     col_valid_from: "Valid from",
     col_valid_to: "Valid to",
-    col_price: "Price/m\u00b3",
+    col_price_gas: "ct/kWh",
+    col_price_water: "Price/m\u00b3",
     col_currency: "Currency",
     open: "open",
     edit_price_title: "Edit price",
     confirm_delete_price: "Really delete this price?",
-    chart_title: "Consumption chart",
+    gas_params_title: "Gas conversion factors",
+    calorific_value_label: "Calorific value (kWh/m\u00b3)",
+    calorific_value_placeholder: "e.g. 11.465",
+    condition_factor_label: "Condition factor",
+    condition_factor_placeholder: "e.g. 0.9684",
+    gas_params_save: "Save conversion factors",
+    gas_params_saved: "Conversion factors saved.",
+    chart_title: "Monthly consumption",
     chart_min_readings: "At least 2 readings are required for a chart.",
     chart_consumption: "Consumption (m\u00b3)",
     chart_reading: "Meter reading (m\u00b3)",
+    chart_no_monthly_data: "Not enough data to calculate monthly consumption.",
     err_invalid_reading: "Please enter a valid meter reading.",
     err_invalid_price: "Please enter a valid price.",
     err_file_too_large: "File is too large ({size} MB). Maximum allowed: 20 MB.",
     err_too_many_pixels: "Image has too many pixels ({mp} MP). Maximum allowed: {max} MP.",
     err_upload_failed: "Upload failed.",
+    upload_photo: "Upload photo",
+    replace_photo: "Replace photo",
+    view_photo: "View",
   },
   de: {
     panel_title: "Gas & Wasser",
@@ -96,28 +110,42 @@ const TRANSLATIONS = {
     edit_reading_title: "Ablesung bearbeiten",
     confirm_delete_reading: "Ablesung wirklich l\u00f6schen?",
     price_title: "Preis erfassen",
-    price_label: "Preis pro m\u00b3",
-    price_placeholder: "z.B. 1.85",
+    price_label_gas: "Preis (ct/kWh)",
+    price_label_water: "Preis pro m\u00b3",
+    price_placeholder_gas: "z.B. 8,45",
+    price_placeholder_water: "z.B. 1,85",
     valid_from: "G\u00fcltig ab",
     valid_to: "G\u00fcltig bis (leer = aktuell g\u00fcltig)",
     price_history: "Preishistorie",
     no_prices: "Noch keine Preise erfasst.",
     col_valid_from: "G\u00fcltig ab",
     col_valid_to: "G\u00fcltig bis",
-    col_price: "Preis/m\u00b3",
+    col_price_gas: "ct/kWh",
+    col_price_water: "Preis/m\u00b3",
     col_currency: "W\u00e4hrung",
     open: "offen",
     edit_price_title: "Preis bearbeiten",
     confirm_delete_price: "Preis wirklich l\u00f6schen?",
-    chart_title: "Verbrauchsgrafik",
+    gas_params_title: "Gas-Umrechnungsfaktoren",
+    calorific_value_label: "Brennwert (kWh/m\u00b3)",
+    calorific_value_placeholder: "z.B. 11,465",
+    condition_factor_label: "Zustandszahl",
+    condition_factor_placeholder: "z.B. 0,9684",
+    gas_params_save: "Umrechnungsfaktoren speichern",
+    gas_params_saved: "Umrechnungsfaktoren gespeichert.",
+    chart_title: "Monatsverbrauch",
     chart_min_readings: "Mindestens 2 Ablesungen f\u00fcr eine Grafik erforderlich.",
     chart_consumption: "Verbrauch (m\u00b3)",
     chart_reading: "Z\u00e4hlerstand (m\u00b3)",
+    chart_no_monthly_data: "Nicht gen\u00fcgend Daten f\u00fcr die Monatsberechnung.",
     err_invalid_reading: "Bitte einen g\u00fcltigen Z\u00e4hlerstand eingeben.",
     err_invalid_price: "Bitte einen g\u00fcltigen Preis eingeben.",
     err_file_too_large: "Die Datei ist zu gro\u00df ({size} MB). Maximal erlaubt: 20 MB.",
     err_too_many_pixels: "Das Bild hat zu viele Pixel ({mp} MP). Maximal erlaubt: {max} MP.",
     err_upload_failed: "Upload fehlgeschlagen.",
+    upload_photo: "Foto hochladen",
+    replace_photo: "Foto ersetzen",
+    view_photo: "Ansehen",
   },
 };
 
@@ -489,53 +517,119 @@ class GasWaterMeterPanel extends LitElement {
   // ---- History Table ----
 
   _renderHistoryTable() {
+    const reversed = this._readings.slice().reverse();
     return html`
       <div class="card">
         <h2>${this._t("history_title")}</h2>
         ${this._readings.length === 0
           ? html`<p class="empty">${this._t("no_readings")}</p>`
-          : html`
-              <table>
-                <thead>
-                  <tr>
-                    <th>${this._t("col_date")}</th>
-                    <th>${this._t("col_reading")}</th>
-                    <th>${this._t("col_consumption")}</th>
-                    <th>${this._t("col_meter_nr")}</th>
-                    <th>${this._t("col_photo")}</th>
-                    <th>${this._t("col_actions")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${this._readings
-                    .slice()
-                    .reverse()
-                    .map((r, i, arr) => {
-                      const prev = i < arr.length - 1 ? arr[i + 1] : null;
-                      const consumption = prev ? (r.reading - prev.reading).toFixed(3) : "-";
-                      return html`
-                        <tr>
-                          <td>${this._fmtDate(r.timestamp)}</td>
-                          <td>${r.reading.toFixed(3)}</td>
-                          <td>${consumption}</td>
-                          <td>${r.meter_number}</td>
-                          <td>${r.image_path ? html`<ha-icon icon="mdi:camera"></ha-icon>` : ""}</td>
-                          <td class="actions">
-                            <button class="icon-btn" title=${this._t("edit")} @click=${() => this._startEditReading(r)}>
-                              <ha-icon icon="mdi:pencil"></ha-icon>
-                            </button>
-                            <button class="icon-btn danger" title=${this._t("delete")} @click=${() => this._deleteReading(r.id)}>
-                              <ha-icon icon="mdi:delete"></ha-icon>
-                            </button>
-                          </td>
-                        </tr>
-                      `;
-                    })}
-                </tbody>
-              </table>
-            `}
+          : this.narrow
+            ? this._renderHistoryCards(reversed)
+            : this._renderHistoryDesktop(reversed)}
       </div>
+      <!-- Hidden file input for photo upload on existing readings -->
+      <input
+        type="file"
+        accept="image/*,.heic,.heif"
+        id="history-photo-input"
+        style="display:none"
+        @change=${this._onHistoryPhotoSelected}
+      />
       ${this._editReading ? this._renderEditReadingDialog() : ""}
+    `;
+  }
+
+  /** Desktop: classic table layout */
+  _renderHistoryDesktop(reversed) {
+    return html`
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>${this._t("col_date")}</th>
+              <th>${this._t("col_reading")}</th>
+              <th>${this._t("col_consumption")}</th>
+              <th>${this._t("col_meter_nr")}</th>
+              <th>${this._t("col_photo")}</th>
+              <th>${this._t("col_actions")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${reversed.map((r, i, arr) => {
+              const prev = i < arr.length - 1 ? arr[i + 1] : null;
+              const consumption = prev ? (r.reading - prev.reading).toFixed(3) : "-";
+              return html`
+                <tr>
+                  <td>${this._fmtDate(r.timestamp)}</td>
+                  <td>${r.reading.toFixed(3)}</td>
+                  <td>${consumption}</td>
+                  <td>${r.meter_number}</td>
+                  <td>${r.image_path ? html`<ha-icon .icon=${"mdi:camera"}></ha-icon>` : ""}</td>
+                  <td class="actions">
+                    <button class="icon-btn" title=${this._t(r.image_path ? "replace_photo" : "upload_photo")} @click=${() => this._startHistoryPhotoUpload(r.id)}>
+                      <ha-icon .icon=${"mdi:camera-plus"}></ha-icon>
+                    </button>
+                    <button class="icon-btn" title=${this._t("edit")} @click=${() => this._startEditReading(r)}>
+                      <ha-icon .icon=${"mdi:pencil"}></ha-icon>
+                    </button>
+                    <button class="icon-btn danger" title=${this._t("delete")} @click=${() => this._deleteReading(r.id)}>
+                      <ha-icon .icon=${"mdi:delete"}></ha-icon>
+                    </button>
+                  </td>
+                </tr>
+              `;
+            })}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  /** Mobile: card-based layout */
+  _renderHistoryCards(reversed) {
+    return html`
+      <div class="reading-cards">
+        ${reversed.map((r, i, arr) => {
+          const prev = i < arr.length - 1 ? arr[i + 1] : null;
+          const consumption = prev ? (r.reading - prev.reading).toFixed(3) : "-";
+          return html`
+            <div class="reading-card">
+              <div class="reading-card-header">
+                <span class="reading-card-date">${this._fmtDate(r.timestamp)}</span>
+                ${r.image_path ? html`<ha-icon .icon=${"mdi:camera"}></ha-icon>` : ""}
+              </div>
+              <div class="reading-card-body">
+                <div class="reading-card-row">
+                  <span class="reading-card-label">${this._t("col_reading")}</span>
+                  <span class="reading-card-value">${r.reading.toFixed(3)} m\u00b3</span>
+                </div>
+                <div class="reading-card-row">
+                  <span class="reading-card-label">${this._t("col_consumption")}</span>
+                  <span>${consumption !== "-" ? consumption + " m\u00b3" : "-"}</span>
+                </div>
+                <div class="reading-card-row">
+                  <span class="reading-card-label">${this._t("col_meter_nr")}</span>
+                  <span>${r.meter_number}</span>
+                </div>
+              </div>
+              <div class="reading-card-actions">
+                <button class="action-btn" @click=${() => this._startHistoryPhotoUpload(r.id)}>
+                  <ha-icon .icon=${"mdi:camera-plus"}></ha-icon>
+                  ${this._t(r.image_path ? "replace_photo" : "upload_photo")}
+                </button>
+                <button class="action-btn" @click=${() => this._startEditReading(r)}>
+                  <ha-icon .icon=${"mdi:pencil"}></ha-icon>
+                  ${this._t("edit")}
+                </button>
+                <button class="action-btn danger" @click=${() => this._deleteReading(r.id)}>
+                  <ha-icon .icon=${"mdi:delete"}></ha-icon>
+                  ${this._t("delete")}
+                </button>
+              </div>
+            </div>
+          `;
+        })}
+      </div>
     `;
   }
 
@@ -558,6 +652,64 @@ class GasWaterMeterPanel extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  // ---- History Photo Upload ----
+
+  _startHistoryPhotoUpload(readingId) {
+    this._uploadForReadingId = readingId;
+    const input = this.shadowRoot.getElementById("history-photo-input");
+    if (input) {
+      input.value = "";
+      input.click();
+    }
+  }
+
+  async _onHistoryPhotoSelected(e) {
+    const MAX_FILE_SIZE = 20 * 1024 * 1024;
+    const MAX_MEGAPIXELS = 21;
+    const file = e.target.files?.[0];
+    if (!file || !this._uploadForReadingId || !this._selectedMeter) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      alert(this._t("err_file_too_large", { size: (file.size / 1024 / 1024).toFixed(1) }));
+      return;
+    }
+
+    try {
+      const mp = await this._getImageMegapixels(file);
+      if (mp > MAX_MEGAPIXELS) {
+        alert(this._t("err_too_many_pixels", { mp: mp.toFixed(1), max: MAX_MEGAPIXELS }));
+        return;
+      }
+    } catch (err) {
+      console.warn("Could not check image resolution", err);
+    }
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("entry_id", this._selectedMeter.entry_id);
+      const resp = await fetch(`/api/${DOMAIN}/upload_image`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.hass.auth.data.access_token}` },
+        body: form,
+      });
+      if (resp.ok) {
+        const result = await resp.json();
+        await this._ws("update_reading", {
+          reading_id: this._uploadForReadingId,
+          image_path: result.image_path,
+        });
+        await this._loadData();
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        alert(err.error || this._t("err_upload_failed"));
+      }
+    } catch (err) {
+      console.error("History photo upload failed", err);
+    }
+    this._uploadForReadingId = null;
   }
 
   _startEditReading(r) {
@@ -588,13 +740,22 @@ class GasWaterMeterPanel extends LitElement {
 
   // ---- Prices Tab ----
 
+  get _isGas() {
+    return this._selectedMeter?.meter_type === "gas";
+  }
+
   _renderPricesTab() {
+    const priceLabel = this._isGas ? this._t("price_label_gas") : `${this._t("price_label_water")} (${this._selectedMeter?.currency || "EUR"})`;
+    const pricePlaceholder = this._isGas ? this._t("price_placeholder_gas") : this._t("price_placeholder_water");
+    const colPrice = this._isGas ? this._t("col_price_gas") : this._t("col_price_water");
+
     return html`
+      ${this._isGas ? this._renderGasParams() : ""}
       <div class="card">
         <h2>${this._t("price_title")}</h2>
         <div class="form">
-          <label>${this._t("price_label")} (${this._selectedMeter?.currency || "EUR"})</label>
-          <input type="number" step="0.01" id="price-value" placeholder=${this._t("price_placeholder")} />
+          <label>${priceLabel}</label>
+          <input type="number" step="0.01" id="price-value" placeholder=${pricePlaceholder} />
           <label>${this._t("valid_from")}</label>
           <input type="date" id="price-from" .value=${new Date().toISOString().slice(0, 10)} />
           <label>${this._t("valid_to")}</label>
@@ -607,53 +768,90 @@ class GasWaterMeterPanel extends LitElement {
         ${this._prices.length === 0
           ? html`<p class="empty">${this._t("no_prices")}</p>`
           : html`
-              <table>
-                <thead>
-                  <tr>
-                    <th>${this._t("col_valid_from")}</th>
-                    <th>${this._t("col_valid_to")}</th>
-                    <th>${this._t("col_price")}</th>
-                    <th>${this._t("col_currency")}</th>
-                    <th>${this._t("col_actions")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${this._prices
-                    .slice()
-                    .reverse()
-                    .map(
-                      (p) => html`
-                        <tr>
-                          <td>${p.valid_from}</td>
-                          <td>${p.valid_to || this._t("open")}</td>
-                          <td>${p.price_per_unit.toFixed(4)}</td>
-                          <td>${p.currency}</td>
-                          <td class="actions">
-                            <button class="icon-btn" title=${this._t("edit")} @click=${() => this._startEditPrice(p)}>
-                              <ha-icon icon="mdi:pencil"></ha-icon>
-                            </button>
-                            <button class="icon-btn danger" title=${this._t("delete")} @click=${() => this._deletePrice(p.id)}>
-                              <ha-icon icon="mdi:delete"></ha-icon>
-                            </button>
-                          </td>
-                        </tr>
-                      `
-                    )}
-                </tbody>
-              </table>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>${this._t("col_valid_from")}</th>
+                      <th>${this._t("col_valid_to")}</th>
+                      <th>${colPrice}</th>
+                      <th>${this._t("col_currency")}</th>
+                      <th>${this._t("col_actions")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${this._prices
+                      .slice()
+                      .reverse()
+                      .map(
+                        (p) => html`
+                          <tr>
+                            <td>${p.valid_from}</td>
+                            <td>${p.valid_to || this._t("open")}</td>
+                            <td>${p.price_per_unit.toFixed(4)}</td>
+                            <td>${this._isGas ? "ct/kWh" : p.currency}</td>
+                            <td class="actions">
+                              <button class="icon-btn" title=${this._t("edit")} @click=${() => this._startEditPrice(p)}>
+                                <ha-icon .icon=${"mdi:pencil"}></ha-icon>
+                              </button>
+                              <button class="icon-btn danger" title=${this._t("delete")} @click=${() => this._deletePrice(p.id)}>
+                                <ha-icon .icon=${"mdi:delete"}></ha-icon>
+                              </button>
+                            </td>
+                          </tr>
+                        `
+                      )}
+                  </tbody>
+                </table>
+              </div>
             `}
       </div>
       ${this._editPrice ? this._renderEditPriceDialog() : ""}
     `;
   }
 
+  _renderGasParams() {
+    const m = this._selectedMeter;
+    return html`
+      <div class="card">
+        <h2>${this._t("gas_params_title")}</h2>
+        <div class="form">
+          <label>${this._t("calorific_value_label")}</label>
+          <input type="number" step="0.001" id="calorific-value"
+            .value=${m?.calorific_value ?? 11.465}
+            placeholder=${this._t("calorific_value_placeholder")} />
+          <label>${this._t("condition_factor_label")}</label>
+          <input type="number" step="0.0001" id="condition-factor"
+            .value=${m?.condition_factor ?? 0.9684}
+            placeholder=${this._t("condition_factor_placeholder")} />
+          <button class="primary" @click=${this._saveGasParams}>${this._t("gas_params_save")}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async _saveGasParams() {
+    const cv = parseFloat(this.shadowRoot.getElementById("calorific-value")?.value);
+    const cf = parseFloat(this.shadowRoot.getElementById("condition-factor")?.value);
+    if (isNaN(cv) || isNaN(cf)) return;
+    await this._ws("update_gas_params", {
+      entry_id: this._selectedMeter.entry_id,
+      calorific_value: cv,
+      condition_factor: cf,
+    });
+    // Update local meter data
+    this._selectedMeter = { ...this._selectedMeter, calorific_value: cv, condition_factor: cf };
+    alert(this._t("gas_params_saved"));
+  }
+
   _renderEditPriceDialog() {
     const p = this._editPrice;
+    const priceLabel = this._isGas ? this._t("price_label_gas") : this._t("price_label_water");
     return html`
       <div class="dialog-overlay" @click=${this._cancelEditPrice}>
         <div class="dialog" @click=${(e) => e.stopPropagation()}>
           <h3>${this._t("edit_price_title")}</h3>
-          <label>${this._t("price_label")}</label>
+          <label>${priceLabel}</label>
           <input type="number" step="0.01" id="edit-price-value" .value=${p.price_per_unit} />
           <label>${this._t("valid_from")}</label>
           <input type="date" id="edit-price-from" .value=${p.valid_from} />
@@ -715,29 +913,117 @@ class GasWaterMeterPanel extends LitElement {
   // ---- Chart ----
 
   _renderChartTab() {
+    const monthly = this._stats.length >= 2 ? this._aggregateMonthly(this._stats) : [];
+    const hasData = monthly.some((m) => m.consumption > 0);
     return html`
       <div class="card">
         <h2>${this._t("chart_title")}</h2>
         ${this._stats.length < 2
           ? html`<p class="empty">${this._t("chart_min_readings")}</p>`
-          : html`<canvas id="consumption-chart" height="300"></canvas>`}
+          : !hasData
+            ? html`<p class="empty">${this._t("chart_no_monthly_data")}</p>`
+            : html`<canvas id="consumption-chart" height="300"></canvas>`}
       </div>
     `;
+  }
+
+  /**
+   * Aggregate raw statistics into monthly buckets.
+   *
+   * Each stat entry has: timestamp, reading, consumption (nullable), days, meter_number.
+   * When a consumption period spans multiple calendar months, the consumption is
+   * distributed proportionally across those months based on the number of days
+   * each month contributes to the period.
+   *
+   * Returns: sorted array of { month, label, consumption, reading }.
+   */
+  _aggregateMonthly(stats) {
+    const MS_PER_DAY = 86_400_000;
+    const buckets = {}; // "YYYY-MM" -> { consumption, lastReading, lastTimestamp }
+
+    const ensureBucket = (key, reading, ts) => {
+      if (!buckets[key]) {
+        buckets[key] = { consumption: 0, lastReading: reading, lastTimestamp: ts };
+      } else if (ts > buckets[key].lastTimestamp) {
+        buckets[key].lastReading = reading;
+        buckets[key].lastTimestamp = ts;
+      }
+    };
+
+    const monthKey = (d) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+    for (let i = 0; i < stats.length; i++) {
+      const s = stats[i];
+      const ts = new Date(s.timestamp);
+      const mk = monthKey(ts);
+      ensureBucket(mk, s.reading, s.timestamp);
+
+      // Skip entries without consumption (first reading or meter change)
+      if (s.consumption == null || i === 0) continue;
+
+      const prev = stats[i - 1];
+      const periodStart = new Date(prev.timestamp);
+      const periodEnd = ts;
+      const totalDays = (periodEnd - periodStart) / MS_PER_DAY;
+      if (totalDays <= 0) continue;
+
+      // Same calendar month — add directly
+      if (periodStart.getFullYear() === periodEnd.getFullYear() && periodStart.getMonth() === periodEnd.getMonth()) {
+        buckets[mk].consumption += s.consumption;
+      } else {
+        // Distribute consumption proportionally across months
+        let cursor = new Date(periodStart);
+        while (cursor < periodEnd) {
+          const ck = monthKey(cursor);
+          // Segment end: first day of next month, or periodEnd, whichever comes first
+          const nextMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+          const segEnd = nextMonth < periodEnd ? nextMonth : periodEnd;
+          const segStart = cursor < periodStart ? periodStart : cursor;
+          const segDays = (segEnd - segStart) / MS_PER_DAY;
+
+          if (segDays > 0) {
+            const share = s.consumption * (segDays / totalDays);
+            ensureBucket(ck, s.reading, s.timestamp);
+            buckets[ck].consumption += share;
+          }
+          cursor = nextMonth;
+        }
+      }
+    }
+
+    return Object.entries(buckets)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, val]) => ({
+        month: key,
+        label: this._fmtMonth(key),
+        consumption: Math.round(val.consumption * 1000) / 1000,
+        reading: val.lastReading,
+      }));
+  }
+
+  /** Format "YYYY-MM" into a locale-aware month label, e.g. "Jan 2026". */
+  _fmtMonth(yearMonth) {
+    const [year, month] = yearMonth.split("-");
+    const d = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const locale = this._lang === "de" ? "de-DE" : "en-US";
+    return d.toLocaleDateString(locale, { month: "short", year: "numeric" });
   }
 
   _renderChart() {
     const canvas = this.shadowRoot?.getElementById("consumption-chart");
     if (!canvas || this._stats.length < 2) return;
 
-    // Destroy previous chart if any
     if (this._chartInstance) {
       this._chartInstance.destroy();
     }
 
-    const data = this._stats.filter((s) => s.consumption != null);
-    const labels = data.map((s) => this._fmtDate(s.timestamp));
-    const consumptions = data.map((s) => s.consumption);
-    const readings = data.map((s) => s.reading);
+    const monthly = this._aggregateMonthly(this._stats);
+    if (monthly.length === 0) return;
+
+    const labels = monthly.map((m) => m.label);
+    const consumptions = monthly.map((m) => m.consumption);
+    const readings = monthly.map((m) => m.reading);
 
     this._chartInstance = new Chart(canvas.getContext("2d"), {
       type: "bar",
@@ -954,6 +1240,10 @@ class GasWaterMeterPanel extends LitElement {
     button.primary:hover {
       background: var(--primary-dark);
     }
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -978,15 +1268,92 @@ class GasWaterMeterPanel extends LitElement {
       background: none;
       border: none;
       cursor: pointer;
-      padding: 4px;
+      padding: 8px;
       border-radius: 50%;
       color: var(--secondary-text-color, #757575);
+      min-width: 40px;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .icon-btn:hover {
       background: rgba(0, 0, 0, 0.05);
     }
     .icon-btn.danger:hover {
       color: var(--danger);
+    }
+    /* ---- Mobile card layout for readings ---- */
+    .reading-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .reading-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .reading-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .reading-card-date {
+      font-size: 13px;
+      color: var(--secondary-text-color, #757575);
+    }
+    .reading-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .reading-card-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+    .reading-card-label {
+      color: var(--secondary-text-color, #757575);
+      font-size: 13px;
+    }
+    .reading-card-value {
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .reading-card-actions {
+      display: flex;
+      gap: 8px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+    .action-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 10px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .action-btn:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+    .action-btn.danger {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+    .action-btn ha-icon {
+      --mdc-icon-size: 18px;
     }
     .dialog-overlay {
       position: fixed;

@@ -5,6 +5,33 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-02-08
+
+### Added
+
+- **Meter number change detection** — when the meter number changes between consecutive readings (e.g. meter replacement), consumption resets to zero; projections are based only on the current meter's readings
+- **Gas energy conversion** — gas meters now support calorific value (Brennwert, kWh/m³) and condition factor (Zustandszahl) for converting m³ to kWh
+- **Energy consumption sensor** — new sensor for gas meters showing consumption in kWh (= m³ × Brennwert × Zustandszahl)
+- **Gas-specific pricing** — gas prices are entered in ct/kWh; costs are calculated as: kWh × ct/kWh / 100 = EUR
+- **Two-step config flow for gas** — gas meters now have a second setup step for calorific value and condition factor
+- **Gas conversion factor management** — edit Brennwert and Zustandszahl via options flow, sidebar panel, or WebSocket API
+- **WebSocket command `update_gas_params`** — update gas conversion factors from the frontend
+- **Mobile responsive history** — card-based layout on narrow screens with touch-friendly action buttons (min 44px)
+- **Photo upload from history** — upload or replace photos for existing readings directly from the history table
+- **Scrollable tables** — horizontal scroll wrappers for data tables on small screens
+- **Monthly consumption chart** — chart now always displays consumption aggregated by calendar month; periods spanning multiple months are distributed proportionally by days
+
+### Changed
+
+- Gas cost calculation: `cost = m³ × Brennwert × Zustandszahl × price(ct/kWh) / 100` (was: `m³ × price`)
+- Water cost calculation unchanged: `cost = m³ × price(EUR/m³)`
+- Gas meters now create 13 sensors (12 common + energy_consumption); water meters still create 12
+- Price sensor unit for gas: `ct/kWh` (was: `EUR/m³`)
+- Frontend price form adapts labels and units based on meter type (gas vs water)
+- Projections now filter by current meter number (ignores readings from replaced meters)
+- Consumption statistics chart also respects meter number boundaries
+- Version bumped to 0.1.0
+
 ## [0.0.4] - 2026-02-08
 
 ### Added

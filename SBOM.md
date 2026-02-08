@@ -1,12 +1,12 @@
 # Software Bill of Materials (SBOM)
 
-## Gas & Water Meter Add-on v0.0.4
+## Gas & Water Meter Add-on v0.1.0
 
 ### Metadata
 
 - **Name**: Gas & Water Meter
 - **Domain**: gas_water_meter
-- **Version**: 0.0.4
+- **Version**: 0.1.0
 - **Type**: Home Assistant Add-on + Custom Integration
 - **Python**: >= 3.12
 - **Home Assistant**: >= 2024.1.0

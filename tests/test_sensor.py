@@ -180,15 +180,30 @@ async def test_empty_db_sensors_unknown(hass: HomeAssistant) -> None:
     assert reading_states[0].state == "unknown"
 
 
-async def test_twelve_sensors_created(hass: HomeAssistant) -> None:
-    """Test that exactly 12 sensors are created per meter."""
+async def test_gas_sensors_created(hass: HomeAssistant) -> None:
+    """Test that exactly 13 sensors are created for a gas meter (12 common + energy_consumption)."""
     await _setup_entry(hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345")
 
     states = hass.states.async_all("sensor")
-    # Filter to only sensors from our integration
     our_sensors = [s for s in states if s.entity_id.startswith("sensor.gas_meter")]
 
+    assert len(our_sensors) == 13
+    # Verify energy_consumption sensor exists
+    energy_sensors = [s for s in our_sensors if "energy_consumption" in s.entity_id]
+    assert len(energy_sensors) == 1
+
+
+async def test_water_sensors_created(hass: HomeAssistant) -> None:
+    """Test that exactly 12 sensors are created for a water meter (no energy_consumption)."""
+    await _setup_entry(hass, MOCK_WATER_CONFIG, "gas_water_meter_water_WAT-67890")
+
+    states = hass.states.async_all("sensor")
+    our_sensors = [s for s in states if s.entity_id.startswith("sensor.water_meter")]
+
     assert len(our_sensors) == 12
+    # Verify energy_consumption sensor does NOT exist
+    energy_sensors = [s for s in our_sensors if "energy_consumption" in s.entity_id]
+    assert len(energy_sensors) == 0
 
 
 async def test_sensors_update_after_db_write_and_refresh(hass: HomeAssistant) -> None:

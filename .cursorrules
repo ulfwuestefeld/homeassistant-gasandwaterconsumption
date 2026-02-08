@@ -17,7 +17,7 @@ You use mocks for mocking external systems.
 - **Domain**: `gas_water_meter`
 - **Type**: Home Assistant Add-on containing a custom integration (service, calculated)
 - **Distribution**: Private GitHub repository, installed via SSH deploy key as add-on repository
-- **Version**: 0.0.5
+- **Version**: 0.1.0
 - **Python**: >= 3.12
 - **Pattern**: Async-first, config-entry-based, coordinator pattern (no polling)
 - **HA Skill**: Use the `homeassistant-development` Cursor skill for HA patterns
@@ -47,7 +47,7 @@ You use mocks for mocking external systems.
 │           ├── icons.json           # Entity icons
 │           ├── manifest.json        # Integration metadata
 │           ├── ocr.py               # Tesseract OCR wrapper + EXIF extraction
-│           ├── sensor.py            # 12 sensor entities per meter
+│           ├── sensor.py            # 13 sensor entities (gas) / 12 (water)
 │           ├── services.yaml        # Service definitions
 │           ├── store.py             # Legacy JSON storage (migration only)
 │           ├── strings.json         # Translation source
@@ -59,7 +59,7 @@ You use mocks for mocking external systems.
 │   ├── rollup.config.mjs           # Rollup build config
 │   └── src/
 │       └── gas-water-meter-panel.js # LitElement sidebar panel
-├── tests/                           # Unit tests (pytest, 115 tests)
+├── tests/                           # Unit tests (pytest, 140 tests)
 ├── .github/workflows/tests.yml      # CI: lint + test
 ├── pyproject.toml                   # Python project config (pythonpath: gas-water-meter)
 └── requirements_test.txt            # Test dependencies
@@ -68,18 +68,22 @@ You use mocks for mocking external systems.
 ## Key Design
 
 - Each config entry = one physical meter (gas or water)
-- 12 sensors per meter: core (5) + projection (3) + cost (4)
+- Gas meters: 13 sensors (12 common + energy_consumption in kWh); Water meters: 12 sensors
+- Gas energy conversion: kWh = m³ × Brennwert (calorific_value) × Zustandszahl (condition_factor)
+- Gas pricing in ct/kWh: cost = kWh × price / 100 (EUR); Water pricing in EUR/m³: cost = m³ × price
+- Two-step config flow for gas (step 1: base, step 2: gas_params with calorific_value + condition_factor)
+- **Meter number change detection**: when meter_number changes between consecutive readings, consumption resets (no delta); projections use only readings from the current meter number (via `async_get_first_reading_for_meter`)
 - Services: record_reading, set_price, read_meter_image
 - OCR: Tesseract via pytesseract (optional, graceful degradation)
 - EXIF: Automatic timestamp extraction from photos
 - Storage: SQLite via aiosqlite (db.py); legacy JSON store (store.py) kept for migration only
-- Frontend: Sidebar panel built with Lit, bundled via Rollup into frontend/entrypoint.js; full i18n via TRANSLATIONS dict + hass.language (en, de)
-- Chart: Chart.js for consumption visualization
-- WebSocket API: Custom commands in websocket.py for frontend-backend CRUD (readings, prices, meters, statistics)
+- Frontend: Sidebar panel built with Lit, bundled via Rollup into frontend/entrypoint.js; full i18n via TRANSLATIONS dict + hass.language (en, de); mobile responsive (card layout on narrow screens)
+- Chart: Chart.js for monthly consumption visualization (proportional aggregation by calendar month)
+- WebSocket API: Custom commands in websocket.py for frontend-backend CRUD (readings, prices, meters, statistics, gas_params)
 - REST API: http.py provides /api/gas_water_meter/upload_image for multipart photo uploads (max 20 MB, 21 MP)
 - Prices: Support validity periods (valid_from, optional valid_to)
 - Energy Dashboard: reading sensor with state_class TOTAL_INCREASING
-- Gas vs Water: Distinguished by device_class, icons, device name, persistence
+- Gas vs Water: Distinguished by device_class, icons, device name, persistence, pricing model
 - Add-on copies integration files to /config/custom_components/ on startup
 - Tests use `pythonpath = ["gas-water-meter"]` in pyproject.toml
 - HEIC/HEIF: pillow-heif registers opener for Pillow; libheif system library in add-on container

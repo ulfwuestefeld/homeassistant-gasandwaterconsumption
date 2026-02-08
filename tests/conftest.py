@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from custom_components.gas_water_meter.const import (
+    CONF_CALORIFIC_VALUE,
+    CONF_CONDITION_FACTOR,
     CONF_CURRENCY,
     CONF_METER_NAME,
     CONF_METER_NUMBER,
@@ -45,6 +47,8 @@ MOCK_GAS_CONFIG = {
     CONF_METER_NAME: "Kitchen",
     CONF_METER_NUMBER: "GAS-12345",
     CONF_CURRENCY: "EUR",
+    CONF_CALORIFIC_VALUE: 11.465,
+    CONF_CONDITION_FACTOR: 0.9684,
 }
 
 MOCK_WATER_CONFIG = {

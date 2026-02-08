@@ -10,11 +10,15 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
+    CONF_CALORIFIC_VALUE,
+    CONF_CONDITION_FACTOR,
     CONF_CURRENCY,
     CONF_METER_NAME,
     CONF_METER_NUMBER,
     CONF_METER_TYPE,
     CURRENCIES,
+    DEFAULT_CALORIFIC_VALUE,
+    DEFAULT_CONDITION_FACTOR,
     DEFAULT_CURRENCY,
     DOMAIN,
     METER_TYPE_GAS,
@@ -27,6 +31,10 @@ class GasWaterMeterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     MINOR_VERSION = 1
+
+    def __init__(self) -> None:
+        """Initialize the config flow."""
+        self._user_data: dict[str, Any] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle the initial step -- meter setup."""
@@ -48,6 +56,12 @@ class GasWaterMeterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             elif not user_input[CONF_METER_NAME].strip():
                 errors[CONF_METER_NAME] = "empty_meter_name"
             else:
+                # For gas meters, proceed to gas_params step
+                if meter_type == METER_TYPE_GAS:
+                    self._user_data = user_input
+                    return await self.async_step_gas_params()
+
+                # For water meters, create entry directly
                 title = f"{user_input[CONF_METER_NAME]} ({meter_type.capitalize()})"
                 return self.async_create_entry(title=title, data=user_input)
 
@@ -67,6 +81,29 @@ class GasWaterMeterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+    async def async_step_gas_params(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Handle the gas-specific parameters step (calorific value, condition factor)."""
+        if user_input is not None:
+            data = {**self._user_data, **user_input}
+            title = f"{data[CONF_METER_NAME]} ({data[CONF_METER_TYPE].capitalize()})"
+            return self.async_create_entry(title=title, data=data)
+
+        return self.async_show_form(
+            step_id="gas_params",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_CALORIFIC_VALUE,
+                        default=DEFAULT_CALORIFIC_VALUE,
+                    ): vol.Coerce(float),
+                    vol.Required(
+                        CONF_CONDITION_FACTOR,
+                        default=DEFAULT_CONDITION_FACTOR,
+                    ): vol.Coerce(float),
+                }
+            ),
         )
 
     @staticmethod
@@ -94,18 +131,35 @@ class GasWaterMeterOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         current_data = self.config_entry.data
+        is_gas = current_data.get(CONF_METER_TYPE) == METER_TYPE_GAS
+
+        schema_fields: dict[vol.Marker, Any] = {
+            vol.Required(
+                CONF_METER_NUMBER,
+                default=current_data.get(CONF_METER_NUMBER, ""),
+            ): str,
+            vol.Required(
+                CONF_CURRENCY,
+                default=current_data.get(CONF_CURRENCY, DEFAULT_CURRENCY),
+            ): vol.In(CURRENCIES),
+        }
+
+        # Add gas-specific fields
+        if is_gas:
+            schema_fields[
+                vol.Required(
+                    CONF_CALORIFIC_VALUE,
+                    default=current_data.get(CONF_CALORIFIC_VALUE, DEFAULT_CALORIFIC_VALUE),
+                )
+            ] = vol.Coerce(float)
+            schema_fields[
+                vol.Required(
+                    CONF_CONDITION_FACTOR,
+                    default=current_data.get(CONF_CONDITION_FACTOR, DEFAULT_CONDITION_FACTOR),
+                )
+            ] = vol.Coerce(float)
+
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_METER_NUMBER,
-                        default=current_data.get(CONF_METER_NUMBER, ""),
-                    ): str,
-                    vol.Required(
-                        CONF_CURRENCY,
-                        default=current_data.get(CONF_CURRENCY, DEFAULT_CURRENCY),
-                    ): vol.In(CURRENCIES),
-                }
-            ),
+            data_schema=vol.Schema(schema_fields),
         )

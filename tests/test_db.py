@@ -356,3 +356,66 @@ async def test_get_price_at_no_applicable(mock_db: MeterDatabase) -> None:
     """Test get_price_at returns None for a date before all prices."""
     price = await mock_db.async_get_price_at("test_entry", "2020-01-01")
     assert price is None
+
+
+# --- Meter number change ---
+
+
+async def test_get_first_reading_for_meter(mock_db_empty: MeterDatabase) -> None:
+    """Test async_get_first_reading_for_meter returns the oldest reading for a specific meter."""
+    db = mock_db_empty
+
+    await db.async_add_reading("e1", "OLD-001", 100.0, "2026-01-01T10:00:00+00:00")
+    await db.async_add_reading("e1", "OLD-001", 150.0, "2026-03-01T10:00:00+00:00")
+    await db.async_add_reading("e1", "NEW-002", 10.0, "2026-04-01T10:00:00+00:00")
+    await db.async_add_reading("e1", "NEW-002", 30.0, "2026-05-01T10:00:00+00:00")
+
+    first_new = await db.async_get_first_reading_for_meter("e1", "NEW-002")
+    assert first_new is not None
+    assert first_new["meter_number"] == "NEW-002"
+    assert first_new["reading"] == 10.0
+
+    first_old = await db.async_get_first_reading_for_meter("e1", "OLD-001")
+    assert first_old is not None
+    assert first_old["meter_number"] == "OLD-001"
+    assert first_old["reading"] == 100.0
+
+
+async def test_get_first_reading_for_meter_none(mock_db_empty: MeterDatabase) -> None:
+    """Test async_get_first_reading_for_meter returns None for unknown meter number."""
+    db = mock_db_empty
+    await db.async_add_reading("e1", "GAS-001", 100.0, "2026-01-01T10:00:00+00:00")
+
+    result = await db.async_get_first_reading_for_meter("e1", "UNKNOWN")
+    assert result is None
+
+
+async def test_consumption_stats_meter_change(mock_db_empty: MeterDatabase) -> None:
+    """Test async_get_consumption_stats resets consumption on meter number change."""
+    db = mock_db_empty
+
+    await db.async_add_reading("e1", "OLD-001", 100.0, "2026-01-01T10:00:00+00:00")
+    await db.async_add_reading("e1", "OLD-001", 120.0, "2026-02-01T10:00:00+00:00")
+    # Meter change
+    await db.async_add_reading("e1", "NEW-002", 5.0, "2026-03-01T10:00:00+00:00")
+    await db.async_add_reading("e1", "NEW-002", 15.0, "2026-04-01T10:00:00+00:00")
+
+    stats = await db.async_get_consumption_stats("e1")
+
+    assert len(stats) == 4
+
+    # First reading: no consumption
+    assert stats[0]["consumption"] is None
+    assert stats[0]["meter_number"] == "OLD-001"
+
+    # Second: same meter, consumption = 20
+    assert stats[1]["consumption"] == 20.0
+    assert stats[1]["meter_number"] == "OLD-001"
+
+    # Third: meter changed, consumption resets to None
+    assert stats[2]["consumption"] is None
+    assert stats[2]["meter_number"] == "NEW-002"
+
+    # Fourth: same meter, consumption = 10
+    assert stats[3]["consumption"] == 10.0
+    assert stats[3]["meter_number"] == "NEW-002"

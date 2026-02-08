@@ -9,36 +9,40 @@ This add-on installs the **Gas & Water Meter** custom integration into your Home
 ## Features
 
 - **Graphical user interface** — sidebar panel for managing meters, readings, prices, and photo uploads directly in the browser
+- **Mobile responsive** — card-based layout on narrow screens with touch-friendly buttons
 - **Manual meter reading entry** — via GUI panel or Home Assistant services
 - **Multiple meters** — add as many gas and/or water meters as needed
+- **Meter replacement support** — when the meter number changes, consumption resets automatically; projections are based only on the current meter
 - **Energy Dashboard compatible** — sensors use `state_class: total_increasing` with proper device classes
-- **Photo capture & upload** — attach photos in JPEG, PNG, HEIC/HEIF format (max 20 MB, 21 megapixels) with automatic OCR
+- **Photo capture & upload** — attach photos in JPEG, PNG, HEIC/HEIF format (max 20 MB, 21 megapixels) with automatic OCR; upload photos for existing readings from the history table
 - **HEIC/HEIF support** — Apple photo format supported via pillow-heif (pre-installed in add-on)
 - **Tesseract OCR** — extract meter readings and serial numbers from photos (Tesseract is pre-installed in this add-on)
 - **EXIF date extraction** — when uploading a photo without a timestamp, the capture date from the photo's EXIF data is used automatically
-- **Consumption chart** — visualization of historical consumption and meter readings
+- **Monthly consumption chart** — consumption always aggregated by calendar month; reading periods spanning multiple months are distributed proportionally
+- **Gas energy conversion** — configure calorific value (Brennwert) and condition factor (Zustandszahl) to convert m³ to kWh
 - **Consumption projection** — daily average, monthly, and yearly projections based on historical data
-- **Price tracking** — record prices with validity periods (valid_from / valid_to) for cost calculations
-- **Cost sensors** — last period cost, monthly and yearly projected costs
+- **Price tracking** — gas: ct/kWh, water: EUR/m³ with validity periods (valid_from / valid_to)
+- **Cost sensors** — costs computed from energy consumption (gas: kWh × ct/kWh) or volume (water: m³ × EUR/m³)
 - **SQLite storage** — persistent data storage using SQLite (automatic migration from earlier versions)
 - **Full i18n** — English and German translations
 
 ## Sensors (per meter)
 
-| Sensor | Description |
-|--------|-------------|
-| Meter reading | Current meter reading (m³) — Energy Dashboard |
-| Meter number | Physical meter serial number |
-| Last entry date | When the last reading was recorded |
-| Last consumption | Delta between last two readings (m³) |
-| Days between readings | Days between last two readings |
-| Daily average consumption | Average daily consumption (m³/day) |
-| Monthly projection | Projected monthly consumption (m³) |
-| Yearly projection | Projected yearly consumption (m³) |
-| Current price | Active price per m³ |
-| Last period cost | Cost for the last consumption period |
-| Monthly projected cost | Projected monthly cost |
-| Yearly projected cost | Projected yearly cost |
+| Sensor | Description | Gas | Water |
+|--------|-------------|-----|-------|
+| Meter reading | Current meter reading (m³) — Energy Dashboard | x | x |
+| Meter number | Physical meter serial number | x | x |
+| Last entry date | When the last reading was recorded | x | x |
+| Last consumption | Delta between last two readings (m³) | x | x |
+| Energy consumption | Last period in kWh (m³ × Brennwert × Zustandszahl) | x | - |
+| Days between readings | Days between last two readings | x | x |
+| Daily average consumption | Average daily consumption (m³/day) | x | x |
+| Monthly projection | Projected monthly consumption (m³) | x | x |
+| Yearly projection | Projected yearly consumption (m³) | x | x |
+| Current price | Active price (gas: ct/kWh, water: EUR/m³) | x | x |
+| Last period cost | Cost for the last consumption period | x | x |
+| Monthly projected cost | Projected monthly cost | x | x |
+| Yearly projected cost | Projected yearly cost | x | x |
 
 ## Installation
 
@@ -55,7 +59,8 @@ After restarting Home Assistant:
 2. Search for "Gas & Water Meter"
 3. Select meter type (Gas or Water)
 4. Enter a name, meter number, and currency
-5. Repeat for additional meters
+5. For gas meters: enter calorific value (Brennwert) and condition factor (Zustandszahl) from your gas bill
+6. Repeat for additional meters
 
 ## Usage
 
@@ -67,7 +72,7 @@ After installation and restart, a **Gas & Water Meter** entry appears in the Hom
 - **Reading entry** — enter meter readings manually or upload a photo for OCR
 - **History table** — view, edit, and delete past readings with consumption data
 - **Price management** — set prices with validity periods (valid_from / valid_to)
-- **Consumption chart** — visualize consumption trends over time
+- **Monthly consumption chart** — visualize consumption per calendar month
 
 ### Recording a Meter Reading (Service)
 
@@ -92,6 +97,16 @@ data:
 
 ### Setting a Price
 
+For gas (ct/kWh):
+```yaml
+service: gas_water_meter.set_price
+data:
+  config_entry_id: "<your_entry_id>"
+  price_per_unit: 8.45
+  valid_from: "2026-01-01"
+```
+
+For water (EUR/m³):
 ```yaml
 service: gas_water_meter.set_price
 data:

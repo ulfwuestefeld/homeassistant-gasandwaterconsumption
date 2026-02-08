@@ -5,6 +5,30 @@ All notable changes to the Gas & Water Meter add-on will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-02-08
+
+### Added
+
+- Meter number change detection: consumption resets on meter replacement; projections use only current meter
+- Gas energy conversion: calorific value (Brennwert, kWh/m³) and condition factor (Zustandszahl)
+- Energy consumption sensor for gas meters (kWh)
+- Gas-specific pricing in ct/kWh (cost = kWh × ct/kWh / 100)
+- Two-step config flow for gas meters (base + conversion factors)
+- WebSocket command `update_gas_params` for updating conversion factors from frontend
+- Gas conversion factor editing in sidebar panel (Prices tab)
+- Mobile responsive history with card layout and touch-friendly buttons
+- Photo upload/replace for existing readings from history table
+- Scrollable table wrappers for narrow screens
+- Monthly consumption chart: consumption aggregated by calendar month with proportional distribution
+
+### Changed
+
+- Gas meters now create 13 sensors (12 common + energy_consumption); water meters still create 12
+- Gas price sensor shows ct/kWh instead of EUR/m³
+- Frontend price form adapts labels and units based on meter type
+- Options flow includes gas conversion factors for gas meters
+- Projections and consumption statistics respect meter number boundaries
+
 ## [0.0.4] - 2026-02-08
 
 ### Added

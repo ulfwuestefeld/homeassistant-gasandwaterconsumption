@@ -28,7 +28,26 @@ const MOCK_METER = {
   currency: "EUR",
 };
 
-function createMockHass(lang = "de") {
+const MOCK_READINGS = [
+  {
+    id: 1,
+    entry_id: "test_entry_1",
+    meter_number: "GAS-001",
+    reading: 100.0,
+    timestamp: "2025-01-01T10:00:00Z",
+    image_path: null,
+  },
+  {
+    id: 2,
+    entry_id: "test_entry_1",
+    meter_number: "GAS-001",
+    reading: 105.5,
+    timestamp: "2025-02-01T10:00:00Z",
+    image_path: "/media/gas_water_meter/photo.jpg",
+  },
+];
+
+function createMockHass(lang = "de", { readings = [] } = {}) {
   return {
     language: lang,
     connection: {
@@ -37,7 +56,7 @@ function createMockHass(lang = "de") {
           case "gas_water_meter/list_meters":
             return { meters: [MOCK_METER] };
           case "gas_water_meter/get_readings":
-            return { readings: [] };
+            return { readings, total: readings.length };
           case "gas_water_meter/get_prices":
             return { prices: [] };
           case "gas_water_meter/get_statistics":
@@ -55,8 +74,8 @@ function createMockHass(lang = "de") {
 // Helper – create the panel and wait until it is fully rendered with data.
 // ---------------------------------------------------------------------------
 
-async function createPanel({ narrow = false, lang = "de" } = {}) {
-  const hass = createMockHass(lang);
+async function createPanel({ narrow = false, lang = "de", readings = [] } = {}) {
+  const hass = createMockHass(lang, { readings });
 
   // connectedCallback fires before Lit commits property bindings,
   // so _loadMeters() called there will fail silently (hass is undefined).
@@ -301,6 +320,162 @@ describe("gas-water-meter-panel", () => {
       const meterTab = el.shadowRoot.querySelector(".meter-tab");
 
       expect(meterTab.classList.contains("active")).to.be.true;
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // History – mobile card layout vs. desktop table
+  // ------------------------------------------------------------------
+
+  describe("history layout", () => {
+    it("shows card layout on mobile (narrow=true) with readings", async () => {
+      const el = await createPanel({ narrow: true, readings: MOCK_READINGS });
+
+      // Switch to history tab
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      // Should render cards, not a table
+      const cards = el.shadowRoot.querySelectorAll(".reading-card");
+      expect(cards.length).to.equal(2);
+
+      const table = el.shadowRoot.querySelector("table");
+      expect(table).to.be.null;
+    });
+
+    it("shows table layout on desktop (narrow=false) with readings", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      // Switch to history tab
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      // Should render table inside a scrollable wrapper
+      const tableScroll = el.shadowRoot.querySelector(".table-scroll");
+      expect(tableScroll).to.not.be.null;
+
+      const table = tableScroll.querySelector("table");
+      expect(table).to.not.be.null;
+
+      const rows = table.querySelectorAll("tbody tr");
+      expect(rows.length).to.equal(2);
+    });
+
+    it("desktop table has a scrollable wrapper", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const wrapper = el.shadowRoot.querySelector(".table-scroll");
+      expect(wrapper).to.not.be.null;
+      const style = window.getComputedStyle(wrapper);
+      expect(style.overflowX).to.equal("auto");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // History – action buttons
+  // ------------------------------------------------------------------
+
+  describe("history action buttons", () => {
+    it("mobile cards have edit, delete, and photo upload buttons", async () => {
+      const el = await createPanel({ narrow: true, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const card = el.shadowRoot.querySelector(".reading-card");
+      const actionBtns = card.querySelectorAll(".action-btn");
+
+      // 3 action buttons: photo, edit, delete
+      expect(actionBtns.length).to.equal(3);
+    });
+
+    it("mobile action buttons have adequate touch target (min 44px)", async () => {
+      const el = await createPanel({ narrow: true, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const actionBtns = el.shadowRoot.querySelectorAll(".action-btn");
+      for (const btn of actionBtns) {
+        const style = window.getComputedStyle(btn);
+        const minHeight = parseInt(style.minHeight, 10);
+        expect(minHeight).to.be.at.least(44, "Touch target should be at least 44px");
+      }
+    });
+
+    it("desktop table has photo upload, edit, and delete buttons per row", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const actionCells = el.shadowRoot.querySelectorAll("td.actions");
+      expect(actionCells.length).to.equal(2);
+
+      // Each row should have 3 icon buttons (photo, edit, delete)
+      for (const cell of actionCells) {
+        const btns = cell.querySelectorAll(".icon-btn");
+        expect(btns.length).to.equal(3);
+      }
+    });
+
+    it("photo upload button label changes when reading has an image", async () => {
+      const el = await createPanel({ narrow: true, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const cards = el.shadowRoot.querySelectorAll(".reading-card");
+      // Cards are in reverse order: reading 2 (with image) first, reading 1 (no image) second
+      const card1PhotoBtn = cards[0].querySelector(".action-btn"); // reading 2 has image
+      const card2PhotoBtn = cards[1].querySelector(".action-btn"); // reading 1 has no image
+
+      expect(card1PhotoBtn.textContent.trim()).to.include("ersetzen");
+      expect(card2PhotoBtn.textContent.trim()).to.include("hochladen");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // History photo upload input
+  // ------------------------------------------------------------------
+
+  describe("history photo upload", () => {
+    it("has a hidden file input for history photo upload", async () => {
+      const el = await createPanel({ narrow: true, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const input = el.shadowRoot.querySelector("#history-photo-input");
+      expect(input).to.not.be.null;
+      expect(input.getAttribute("type")).to.equal("file");
+      expect(input.style.display).to.equal("none");
+      expect(input.hasAttribute("capture")).to.be.false;
+    });
+
+    it("hidden file input accepts images including HEIC/HEIF", async () => {
+      const el = await createPanel({ narrow: true, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const input = el.shadowRoot.querySelector("#history-photo-input");
+      const accept = input.getAttribute("accept");
+      expect(accept).to.include("image/*");
+      expect(accept).to.include(".heic");
+      expect(accept).to.include(".heif");
     });
   });
 });

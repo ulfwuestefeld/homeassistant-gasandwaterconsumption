@@ -16,6 +16,18 @@
                     "meter_number": "Die Seriennummer auf Ihrem physischen Z\u00e4hler.",
                     "currency": "W\u00e4hrung f\u00fcr Kostenberechnungen."
                 }
+            },
+            "gas_params": {
+                "title": "Gas-Umrechnungsfaktoren",
+                "description": "Geben Sie den Brennwert und die Zustandszahl von Ihrer Gasrechnung ein. Diese werden zur Umrechnung von m\u00b3 in kWh f\u00fcr die Kostenberechnung verwendet.",
+                "data": {
+                    "calorific_value": "Brennwert (kWh/m\u00b3)",
+                    "condition_factor": "Zustandszahl"
+                },
+                "data_description": {
+                    "calorific_value": "Der Brennwert von Ihrer Gasrechnung, typischerweise ca. 11,465 kWh/m\u00b3.",
+                    "condition_factor": "Die Zustandszahl von Ihrer Gasrechnung, typischerweise ca. 0,9684."
+                }
             }
         },
         "error": {
@@ -32,11 +44,15 @@
                 "title": "Z\u00e4hler-Optionen",
                 "data": {
                     "meter_number": "Z\u00e4hlernummer",
-                    "currency": "W\u00e4hrung"
+                    "currency": "W\u00e4hrung",
+                    "calorific_value": "Brennwert (kWh/m\u00b3)",
+                    "condition_factor": "Zustandszahl"
                 },
                 "data_description": {
                     "meter_number": "Z\u00e4hlernummer aktualisieren (z.B. nach Z\u00e4hlerwechsel).",
-                    "currency": "W\u00e4hrung f\u00fcr Kostenberechnungen."
+                    "currency": "W\u00e4hrung f\u00fcr Kostenberechnungen.",
+                    "calorific_value": "Der Brennwert von Ihrer Gasrechnung.",
+                    "condition_factor": "Die Zustandszahl von Ihrer Gasrechnung."
                 }
             }
         }
@@ -54,6 +70,9 @@
             },
             "consumption": {
                 "name": "Letzter Verbrauch"
+            },
+            "energy_consumption": {
+                "name": "Energieverbrauch"
             },
             "days_between": {
                 "name": "Tage zwischen Ablesungen"
@@ -110,15 +129,15 @@
         },
         "set_price": {
             "name": "Preis festlegen",
-            "description": "Einen neuen Verbrauchspreis pro m\u00b3 festlegen. Historische Preise bleiben erhalten.",
+            "description": "Einen neuen Verbrauchspreis festlegen. Gas: ct/kWh, Wasser: EUR/m\u00b3. Historische Preise bleiben erhalten.",
             "fields": {
                 "config_entry_id": {
                     "name": "Z\u00e4hler",
                     "description": "Der Z\u00e4hler, f\u00fcr den der Preis festgelegt werden soll."
                 },
                 "price_per_unit": {
-                    "name": "Preis pro m\u00b3",
-                    "description": "Der Preis pro Kubikmeter."
+                    "name": "Preis pro Einheit",
+                    "description": "Gas: Preis in ct/kWh. Wasser: Preis in EUR/m\u00b3."
                 },
                 "valid_from": {
                     "name": "G\u00fcltig ab",

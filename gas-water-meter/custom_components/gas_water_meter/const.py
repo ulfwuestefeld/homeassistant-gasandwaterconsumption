@@ -13,6 +13,10 @@ CONF_METER_NAME = "meter_name"
 CONF_METER_NUMBER = "meter_number"
 CONF_CURRENCY = "currency"
 
+# Gas-specific config keys
+CONF_CALORIFIC_VALUE = "calorific_value"
+CONF_CONDITION_FACTOR = "condition_factor"
+
 # Meter types
 METER_TYPE_GAS = "gas"
 METER_TYPE_WATER = "water"
@@ -21,6 +25,10 @@ METER_TYPES = [METER_TYPE_GAS, METER_TYPE_WATER]
 # Default values
 DEFAULT_CURRENCY = "EUR"
 CURRENCIES = ["EUR", "USD", "GBP", "CHF"]
+
+# Gas conversion defaults (typical German utility values)
+DEFAULT_CALORIFIC_VALUE = 11.465  # kWh/m³ (Brennwert)
+DEFAULT_CONDITION_FACTOR = 0.9684  # Zustandszahl
 
 # Storage
 STORAGE_VERSION = 1
@@ -38,6 +46,7 @@ ICONS = {
         "meter_number": "mdi:identifier",
         "last_entry_date": "mdi:calendar-clock",
         "consumption": "mdi:gas-burner",
+        "energy_consumption": "mdi:lightning-bolt",
         "days_between": "mdi:calendar-range",
         "daily_average": "mdi:gas-burner",
         "monthly_projection": "mdi:gas-burner",

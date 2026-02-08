@@ -9,7 +9,18 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_CURRENCY, CONF_METER_NAME, CONF_METER_NUMBER, CONF_METER_TYPE, DOMAIN
+from .const import (
+    CONF_CALORIFIC_VALUE,
+    CONF_CONDITION_FACTOR,
+    CONF_CURRENCY,
+    CONF_METER_NAME,
+    CONF_METER_NUMBER,
+    CONF_METER_TYPE,
+    DEFAULT_CALORIFIC_VALUE,
+    DEFAULT_CONDITION_FACTOR,
+    DOMAIN,
+    METER_TYPE_GAS,
+)
 from .db import MeterDatabase
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,6 +40,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_update_price)
     websocket_api.async_register_command(hass, ws_delete_price)
     websocket_api.async_register_command(hass, ws_get_statistics)
+    websocket_api.async_register_command(hass, ws_update_gas_params)
 
 
 def _get_db(hass: HomeAssistant) -> MeterDatabase:
@@ -55,15 +67,18 @@ async def ws_list_meters(
     """Return all configured meters with metadata."""
     meters: list[dict[str, Any]] = []
     for entry in hass.config_entries.async_entries(DOMAIN):
-        meters.append(
-            {
-                "entry_id": entry.entry_id,
-                "meter_type": entry.data.get(CONF_METER_TYPE, ""),
-                "meter_name": entry.data.get(CONF_METER_NAME, ""),
-                "meter_number": entry.data.get(CONF_METER_NUMBER, ""),
-                "currency": entry.data.get(CONF_CURRENCY, "EUR"),
-            }
-        )
+        meter: dict[str, Any] = {
+            "entry_id": entry.entry_id,
+            "meter_type": entry.data.get(CONF_METER_TYPE, ""),
+            "meter_name": entry.data.get(CONF_METER_NAME, ""),
+            "meter_number": entry.data.get(CONF_METER_NUMBER, ""),
+            "currency": entry.data.get(CONF_CURRENCY, "EUR"),
+        }
+        # Include gas-specific conversion factors
+        if meter["meter_type"] == METER_TYPE_GAS:
+            meter["calorific_value"] = entry.data.get(CONF_CALORIFIC_VALUE, DEFAULT_CALORIFIC_VALUE)
+            meter["condition_factor"] = entry.data.get(CONF_CONDITION_FACTOR, DEFAULT_CONDITION_FACTOR)
+        meters.append(meter)
     connection.send_result(msg["id"], {"meters": meters})
 
 
@@ -148,6 +163,7 @@ async def ws_add_reading(
         vol.Optional("meter_number"): str,
         vol.Optional("reading"): vol.Coerce(float),
         vol.Optional("timestamp"): str,
+        vol.Optional("image_path"): vol.Any(str, None),
     }
 )
 @websocket_api.async_response
@@ -165,6 +181,8 @@ async def ws_update_reading(
         kwargs["reading"] = msg["reading"]
     if "timestamp" in msg:
         kwargs["timestamp"] = msg["timestamp"]
+    if "image_path" in msg:
+        kwargs["image_path"] = msg["image_path"]
 
     ok = await db.async_update_reading(msg["reading_id"], **kwargs)
     if not ok:
@@ -337,6 +355,49 @@ async def ws_get_statistics(
     db = _get_db(hass)
     stats = await db.async_get_consumption_stats(msg["entry_id"])
     connection.send_result(msg["id"], {"statistics": stats})
+
+
+# ------------------------------------------------------------------
+# Gas parameters
+# ------------------------------------------------------------------
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{WS_PREFIX}update_gas_params",
+        vol.Required("entry_id"): str,
+        vol.Optional("calorific_value"): vol.Coerce(float),
+        vol.Optional("condition_factor"): vol.Coerce(float),
+    }
+)
+@websocket_api.async_response
+async def ws_update_gas_params(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Update gas conversion parameters (Brennwert, Zustandszahl)."""
+    entry_id = msg["entry_id"]
+    entry = hass.config_entries.async_get_entry(entry_id)
+    if entry is None:
+        connection.send_error(msg["id"], "not_found", "Config entry not found")
+        return
+
+    if entry.data.get(CONF_METER_TYPE) != METER_TYPE_GAS:
+        connection.send_error(msg["id"], "not_gas", "This meter is not a gas meter")
+        return
+
+    new_data = dict(entry.data)
+    if "calorific_value" in msg:
+        new_data[CONF_CALORIFIC_VALUE] = msg["calorific_value"]
+    if "condition_factor" in msg:
+        new_data[CONF_CONDITION_FACTOR] = msg["condition_factor"]
+
+    hass.config_entries.async_update_entry(entry, data=new_data)
+
+    # Refresh coordinator so sensors pick up new conversion factors
+    await _refresh_coordinator(hass, entry_id)
+    connection.send_result(msg["id"], {"success": True})
 
 
 # ------------------------------------------------------------------
