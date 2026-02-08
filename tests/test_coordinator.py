@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from custom_components.gas_water_meter.const import DAYS_PER_MONTH, DAYS_PER_YEAR
-from custom_components.gas_water_meter.coordinator import MeterCoordinator, _days_between
+from custom_components.gas_water_meter.coordinator import (
+    _UPDATE_INTERVAL,
+    MeterCoordinator,
+    _days_between,
+)
 from custom_components.gas_water_meter.db import MeterDatabase
+from custom_components.gas_water_meter.websocket import (
+    _refresh_all_coordinators,
+    _refresh_coordinator,
+)
 from homeassistant.core import HomeAssistant
 
 from .conftest import MOCK_GAS_CONFIG
@@ -199,3 +209,111 @@ async def test_coordinator_single_reading(hass: HomeAssistant, mock_db_empty: Me
     assert data.daily_average is None
     assert data.monthly_projection is None
     assert data.yearly_projection is None
+
+
+def test_coordinator_has_polling_interval() -> None:
+    """Test that the safety-net polling interval is 60 seconds."""
+    assert timedelta(seconds=60) == _UPDATE_INTERVAL
+
+
+async def test_coordinator_update_interval_set(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Test that the coordinator instance uses the 60-second update interval."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+    )
+    entry.add_to_hass(hass)
+
+    coordinator = MeterCoordinator(hass, entry, mock_db_empty)
+
+    assert coordinator.update_interval == timedelta(seconds=60)
+
+
+async def test_coordinator_reflects_new_data_after_refresh(
+    hass: HomeAssistant, mock_db_empty: MeterDatabase
+) -> None:
+    """Test that coordinator picks up new DB data after explicit refresh.
+
+    This simulates the real-world flow: integration starts with empty DB,
+    user enters data via GUI (WebSocket), coordinator is refreshed, and
+    sensor values must reflect the new data.
+
+    Uses ``async_refresh()`` (immediate, bypasses debouncer) to verify the
+    data pipeline without timing dependencies.
+    """
+    db = mock_db_empty
+
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+    )
+    entry.add_to_hass(hass)
+
+    coordinator = MeterCoordinator(hass, entry, db)
+    await coordinator.async_refresh()
+
+    # Initially empty -- no readings
+    assert coordinator.data is not None
+    assert coordinator.data.reading is None
+    assert coordinator.data.consumption is None
+
+    # --- Simulate user entering first reading via GUI ---
+    await db.async_add_reading(
+        entry_id="test_entry",
+        meter_number="GAS-12345",
+        reading=100.0,
+        timestamp="2026-01-01T10:00:00+00:00",
+    )
+    await coordinator.async_refresh()
+
+    assert coordinator.data.reading == 100.0
+    assert coordinator.data.meter_number == "GAS-12345"
+    assert coordinator.data.consumption is None  # only 1 reading, no delta
+
+    # --- Simulate user entering second reading ---
+    await db.async_add_reading(
+        entry_id="test_entry",
+        meter_number="GAS-12345",
+        reading=115.7,
+        timestamp="2026-01-20T10:00:00+00:00",
+    )
+    await coordinator.async_refresh()
+
+    assert coordinator.data.reading == 115.7
+    assert coordinator.data.consumption is not None
+    assert abs(coordinator.data.consumption - 15.7) < 0.001
+    assert coordinator.data.daily_average is not None
+
+    # Clean up the coordinator's internal debouncer/timer
+    await coordinator.async_shutdown()
+
+
+async def test_refresh_coordinator_missing_entry(hass: HomeAssistant) -> None:
+    """Test _refresh_coordinator handles a non-existent entry gracefully."""
+    # Must not raise -- logs a warning instead
+    await _refresh_coordinator(hass, "nonexistent_entry_id")
+
+
+async def test_refresh_coordinator_no_runtime_data(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Test _refresh_coordinator handles missing runtime_data gracefully."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+    )
+    entry.add_to_hass(hass)
+    # Do NOT set up the entry -- runtime_data is not set
+
+    # Must not raise -- logs a warning instead
+    await _refresh_coordinator(hass, "test_entry")
+
+
+async def test_refresh_all_coordinators_no_entries(hass: HomeAssistant) -> None:
+    """Test _refresh_all_coordinators does nothing when no entries exist."""
+    # Must not raise
+    await _refresh_all_coordinators(hass)
