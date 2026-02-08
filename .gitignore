@@ -23,4 +23,4 @@ htmlcov/
 node_modules/
 
 # Symlink created for testing (points to gas-water-meter/custom_components/)
-custom_components
+/custom_components
