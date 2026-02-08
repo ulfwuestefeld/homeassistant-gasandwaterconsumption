@@ -169,4 +169,4 @@ MIT License. See [FOSS.md](FOSS.md) for third-party licenses.
 
 ## Version
 
-0.0.2 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.0.3 — See [CHANGELOG.md](CHANGELOG.md) for details.

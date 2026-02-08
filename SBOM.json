@@ -6,7 +6,7 @@
         "component": {
             "type": "application",
             "name": "gas_water_meter",
-            "version": "0.0.2",
+            "version": "0.0.3",
             "description": "Home Assistant add-on and custom integration for manual gas and water meter reading entry with OCR, projection, and cost tracking",
             "licenses": [
                 {

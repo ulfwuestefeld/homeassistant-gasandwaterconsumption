@@ -9,5 +9,5 @@
     "iot_class": "calculated",
     "issue_tracker": "https://github.com/ulfwuestefeld/gasandwater/issues",
     "requirements": ["pytesseract>=0.3.10"],
-    "version": "0.0.2"
+    "version": "0.0.3"
 }
