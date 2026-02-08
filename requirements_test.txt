@@ -4,4 +4,6 @@ pytest-cov>=6.0.0
 pytest-timeout>=2.3.0
 pytest-homeassistant-custom-component>=0.13.0
 pytesseract>=0.3.10
+aiosqlite>=0.20.0
+pillow-heif>=0.18.0
 ruff>=0.9.0
