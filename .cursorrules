@@ -95,4 +95,5 @@ After each significant change, verify:
 - [ ] FOSS list updated if open source dependencies changed (`FOSS.md`)
 - [ ] Licenses of third-party components are compatible (check `FOSS.md`)
 - [ ] Translations updated for all new strings
+- [ ] `requirements_test.txt` updated when `manifest.json` requirements change (CI installs test deps manually, not from manifest)
 - [ ] .cursorrules is still accurate
