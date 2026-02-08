@@ -270,10 +270,23 @@ class GasWaterMeterPanel extends LitElement {
 
   // ---- Render ----
 
+  _toggleMenu() {
+    const evt = new Event("hass-toggle-menu", {
+      bubbles: true,
+      composed: true,
+    });
+    this.dispatchEvent(evt);
+  }
+
   render() {
     return html`
       <div class="panel">
-        <div class="header">
+        <div class="toolbar">
+          ${this.narrow
+            ? html`<button class="menu-btn" @click=${this._toggleMenu}>
+                <ha-icon icon="mdi:menu"></ha-icon>
+              </button>`
+            : ""}
           <h1>${this._t("panel_title")}</h1>
         </div>
         ${this._meters.length === 0
@@ -350,7 +363,7 @@ class GasWaterMeterPanel extends LitElement {
         <div class="form">
           <div class="upload-area">
             <label>${this._t("photo_optional")}</label>
-            <input type="file" accept="image/*,.heic,.heif" capture="environment" id="photo-input" @change=${this._onPhotoSelected} />
+            <input type="file" accept="image/*,.heic,.heif" id="photo-input" @change=${this._onPhotoSelected} />
             ${this._uploading ? html`<div class="spinner">${this._t("processing")}</div>` : ""}
             ${this._uploadResult?.image_path
               ? html`<img class="preview" src="/local/gas_water_meter_media" alt="Preview" style="display:none" />`
@@ -817,10 +830,32 @@ class GasWaterMeterPanel extends LitElement {
       font-family: var(--paper-font-body1_-_font-family, Roboto, sans-serif);
       color: var(--text);
     }
-    .header h1 {
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       margin: 0 0 16px;
+    }
+    .toolbar h1 {
+      margin: 0;
       font-size: 24px;
       font-weight: 400;
+      flex: 1;
+    }
+    .menu-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      margin: -8px 0 -8px -8px;
+      border-radius: 50%;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .menu-btn:hover {
+      background: rgba(0, 0, 0, 0.05);
     }
     .meter-tabs {
       display: flex;
@@ -1030,8 +1065,17 @@ class GasWaterMeterPanel extends LitElement {
       :host {
         padding: 8px;
       }
-      .tab span {
-        display: none;
+      .tab-bar {
+        justify-content: space-around;
+      }
+      .tab {
+        flex-direction: column;
+        padding: 8px 6px;
+        font-size: 11px;
+        gap: 2px;
+      }
+      .tab ha-icon {
+        --mdc-icon-size: 20px;
       }
     }
   `;
