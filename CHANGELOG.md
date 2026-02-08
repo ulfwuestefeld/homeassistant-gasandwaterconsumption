@@ -5,6 +5,15 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2026-02-08
+
+### Fixed
+
+- Fixed missing `__init__.py` in `custom_components/` package (integration was not discovered by HA)
+- Fixed coordinator tests using `async_config_entry_first_refresh` outside setup flow
+- Fixed OCR test where adjacent digits across newlines were incorrectly merged
+- Set author/codeowner to `ulfwuestefeld` across all metadata files
+
 ## [0.0.1] - 2026-02-08
 
 ### Added

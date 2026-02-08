@@ -14,6 +14,12 @@ from custom_components.gas_water_meter.const import (
     METER_TYPE_WATER,
 )
 
+
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations):
+    """Enable custom integrations for all tests."""
+    yield
+
 MOCK_GAS_CONFIG = {
     CONF_METER_TYPE: METER_TYPE_GAS,
     CONF_METER_NAME: "Kitchen",

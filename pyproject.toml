@@ -1,10 +1,11 @@
 [project]
 name = "gas-water-meter"
-version = "0.0.1"
+version = "0.0.2"
 description = "Home Assistant custom integration for manual gas and water meter reading entry with OCR, projection, and cost tracking"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
+authors = [{name = "ulfwuestefeld"}]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
