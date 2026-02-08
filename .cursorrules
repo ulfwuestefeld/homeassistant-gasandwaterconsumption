@@ -17,7 +17,7 @@ You use mocks for mocking external systems.
 - **Domain**: `gas_water_meter`
 - **Type**: Home Assistant Add-on containing a custom integration (service, calculated)
 - **Distribution**: Private GitHub repository, installed via SSH deploy key as add-on repository
-- **Version**: 0.0.4
+- **Version**: 0.0.5
 - **Python**: >= 3.12
 - **Pattern**: Async-first, config-entry-based, coordinator pattern (no polling)
 - **HA Skill**: Use the `homeassistant-development` Cursor skill for HA patterns
