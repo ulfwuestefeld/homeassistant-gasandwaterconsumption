@@ -20,7 +20,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import MeterCoordinator
-from .ocr import is_tesseract_available, read_meter_image
+from .ocr import extract_exif_datetime, is_tesseract_available, read_meter_image
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,7 +121,14 @@ async def _handle_record_reading(hass: HomeAssistant, call: ServiceCall) -> None
     timestamp_str: str | None = call.data.get(ATTR_TIMESTAMP)
     image_path: str | None = call.data.get(ATTR_IMAGE)
 
-    # Default timestamp to now
+    # Extract EXIF datetime from image if no explicit timestamp provided
+    if timestamp_str is None and image_path is not None:
+        exif_dt = await hass.async_add_executor_job(extract_exif_datetime, image_path)
+        if exif_dt is not None:
+            timestamp_str = exif_dt
+            _LOGGER.info("Using EXIF datetime from photo: %s", timestamp_str)
+
+    # Default timestamp to now if still not set
     if timestamp_str is None:
         timestamp_str = datetime.now(tz=UTC).isoformat()
 
@@ -253,6 +260,7 @@ async def _handle_read_meter_image(hass: HomeAssistant, call: ServiceCall) -> di
         "meter_number": ocr_result.meter_number,
         "confidence": round(ocr_result.confidence, 3),
         "raw_text": ocr_result.raw_text,
+        "exif_datetime": ocr_result.exif_datetime,
     }
 
 

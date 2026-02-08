@@ -50,7 +50,7 @@ async def test_coordinator_computes_core_data(hass: HomeAssistant, mock_store_lo
 
     coordinator = MeterCoordinator(hass, entry)
     await coordinator.async_setup()
-    await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_refresh()
 
     data = coordinator.data
     assert data is not None
@@ -81,7 +81,7 @@ async def test_coordinator_computes_projection(hass: HomeAssistant, mock_store_l
 
     coordinator = MeterCoordinator(hass, entry)
     await coordinator.async_setup()
-    await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_refresh()
 
     data = coordinator.data
     assert data is not None
@@ -114,7 +114,7 @@ async def test_coordinator_computes_costs(hass: HomeAssistant, mock_store_load, 
 
     coordinator = MeterCoordinator(hass, entry)
     await coordinator.async_setup()
-    await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_refresh()
 
     data = coordinator.data
     assert data is not None
@@ -146,7 +146,7 @@ async def test_coordinator_empty_store(hass: HomeAssistant, mock_store_empty, mo
 
     coordinator = MeterCoordinator(hass, entry)
     await coordinator.async_setup()
-    await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_refresh()
 
     data = coordinator.data
     assert data is not None
@@ -186,7 +186,7 @@ async def test_coordinator_single_reading(hass: HomeAssistant, mock_store_save) 
 
         coordinator = MeterCoordinator(hass, entry)
         await coordinator.async_setup()
-        await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_refresh()
 
     data = coordinator.data
     assert data is not None

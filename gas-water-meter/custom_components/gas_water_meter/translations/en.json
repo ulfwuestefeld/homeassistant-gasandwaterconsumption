@@ -100,7 +100,7 @@
                 },
                 "timestamp": {
                     "name": "Timestamp",
-                    "description": "Date and time of the reading. Defaults to now."
+                    "description": "Date and time of the reading. If omitted and an image is provided, the EXIF capture date from the photo is used. Otherwise defaults to now."
                 },
                 "image": {
                     "name": "Image",

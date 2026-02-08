@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Service `record_reading` for recording meter readings with optional photo
 - Service `set_price` for setting consumption prices with historical tracking
 - Service `read_meter_image` for OCR extraction without recording
+- Automatic EXIF datetime extraction from photos (used as entry timestamp when no explicit timestamp is provided)
 - Graceful degradation when Tesseract is not available in HA core
 - Persistent storage via HA Store helper (readings, prices, image references)
 - Multi-meter support (multiple gas and water meters)

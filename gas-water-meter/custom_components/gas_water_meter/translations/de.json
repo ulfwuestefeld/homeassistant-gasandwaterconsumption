@@ -100,7 +100,7 @@
                 },
                 "timestamp": {
                     "name": "Zeitstempel",
-                    "description": "Datum und Uhrzeit der Ablesung. Standard ist jetzt."
+                    "description": "Datum und Uhrzeit der Ablesung. Wird kein Zeitstempel angegeben und ein Bild bereitgestellt, wird das EXIF-Aufnahmedatum aus dem Foto verwendet. Andernfalls wird der aktuelle Zeitpunkt verwendet."
                 },
                 "image": {
                     "name": "Bild",

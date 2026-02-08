@@ -9,6 +9,7 @@ A Home Assistant add-on that provides a custom integration for manually recordin
 - **Energy Dashboard compatible** — sensors use `state_class: total_increasing` with proper device classes
 - **Photo capture** — attach photos to meter readings for documentation
 - **Tesseract OCR** — extract meter readings and serial numbers from photos (pre-installed in add-on)
+- **EXIF date extraction** — when uploading a photo without a timestamp, the capture date from the photo's EXIF data is used automatically
 - **Consumption projection** — daily average, monthly, and yearly projections based on historical data
 - **Price tracking** — record current and historical prices for cost calculations
 - **Cost sensors** — last period cost, monthly and yearly projected costs

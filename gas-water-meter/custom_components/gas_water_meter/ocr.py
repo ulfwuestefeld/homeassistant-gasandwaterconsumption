@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
@@ -39,6 +40,56 @@ class OcrResult:
     meter_number: str | None
     confidence: float
     raw_text: str
+    exif_datetime: str | None
+
+
+def extract_exif_datetime(image_path: str | Path) -> str | None:
+    """Extract the photo capture date/time from EXIF data.
+
+    Checks the following EXIF tags in order of preference:
+    1. DateTimeOriginal (tag 36867) -- when the photo was originally taken
+    2. DateTimeDigitized (tag 36868) -- when the image was digitized
+    3. DateTime (tag 306) -- last modification time
+
+    Returns an ISO 8601 formatted datetime string, or None if no EXIF date is found.
+    """
+    # EXIF tag IDs
+    tag_datetime_original = 36867
+    tag_datetime_digitized = 36868
+    tag_datetime = 306
+
+    try:
+        img = Image.open(image_path)
+        exif_data = img.getexif()
+
+        if not exif_data:
+            return None
+
+        # Check IFD EXIF sub-directory for DateTimeOriginal and DateTimeDigitized
+        exif_ifd = exif_data.get_ifd(0x8769)  # ExifIFD
+
+        exif_datetime_str = None
+        for tag_id in [tag_datetime_original, tag_datetime_digitized]:
+            value = exif_ifd.get(tag_id)
+            if value:
+                exif_datetime_str = value
+                break
+
+        # Fallback to root DateTime tag
+        if exif_datetime_str is None:
+            exif_datetime_str = exif_data.get(tag_datetime)
+
+        if exif_datetime_str is None:
+            return None
+
+        # EXIF datetime format is "YYYY:MM:DD HH:MM:SS"
+        # Convert to ISO 8601 format
+        parsed = datetime.strptime(exif_datetime_str, "%Y:%m:%d %H:%M:%S")
+        return parsed.isoformat()
+
+    except Exception:
+        _LOGGER.debug("Could not extract EXIF datetime from %s", image_path, exc_info=True)
+        return None
 
 
 def preprocess_image(image_path: str | Path) -> Image.Image:
@@ -138,6 +189,9 @@ def read_meter_image(image_path: str | Path) -> OcrResult:
 
     import pytesseract as tess  # noqa: PLC0415
 
+    # Extract EXIF datetime before preprocessing (which strips EXIF)
+    exif_dt = extract_exif_datetime(image_path)
+
     # Preprocess the image
     processed = preprocess_image(image_path)
 
@@ -176,4 +230,5 @@ def read_meter_image(image_path: str | Path) -> OcrResult:
         meter_number=meter_number,
         confidence=avg_confidence,
         raw_text=raw_text,
+        exif_datetime=exif_dt,
     )

@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import tempfile
+from io import BytesIO
+from unittest.mock import patch
+
 from custom_components.gas_water_meter.ocr import (
+    extract_exif_datetime,
     extract_meter_number,
     extract_meter_reading,
 )
+from PIL import Image
 
 
 class TestExtractMeterReading:
@@ -36,7 +42,7 @@ class TestExtractMeterReading:
 
     def test_multiple_numbers_picks_longest(self) -> None:
         """Test that the longest number is selected (most likely meter reading)."""
-        text = "Nr 42\n12345.678\nDate 2026"
+        text = "Type: gas\n12345.678\nDate 2026"
         result = extract_meter_reading(text)
         assert result is not None
         assert abs(result - 12345.678) < 0.001
@@ -106,3 +112,82 @@ class TestExtractMeterNumber:
         """Test labels with different separators."""
         assert extract_meter_number("Nr. ABC-12345") == "ABC-12345"
         assert extract_meter_number("Nr; ABC-12345") == "ABC-12345"
+
+
+class TestExtractExifDatetime:
+    """Tests for EXIF datetime extraction from images."""
+
+    def _create_jpeg_with_exif(self, exif_tag_id: int, value: str, *, use_ifd: bool = True) -> str:
+        """Create a temporary JPEG file with a specific EXIF tag and return its path."""
+        img = Image.new("RGB", (100, 100), color="white")
+        exif = img.getexif()
+
+        if use_ifd:
+            # Set tag in the ExifIFD sub-directory (0x8769)
+            ifd = exif.get_ifd(0x8769)
+            ifd[exif_tag_id] = value
+        else:
+            # Set tag in root EXIF
+            exif[exif_tag_id] = value
+
+        buf = BytesIO()
+        img.save(buf, format="JPEG", exif=exif.tobytes())
+        buf.seek(0)
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # noqa: SIM115
+        tmp.write(buf.read())
+        tmp.close()
+        return tmp.name
+
+    def test_datetime_original(self) -> None:
+        """Test extraction of DateTimeOriginal EXIF tag."""
+        path = self._create_jpeg_with_exif(36867, "2026:02:08 14:30:00")
+        result = extract_exif_datetime(path)
+        assert result == "2026-02-08T14:30:00"
+
+    def test_datetime_digitized(self) -> None:
+        """Test extraction of DateTimeDigitized EXIF tag."""
+        path = self._create_jpeg_with_exif(36868, "2026:01:15 09:45:00")
+        result = extract_exif_datetime(path)
+        assert result == "2026-01-15T09:45:00"
+
+    def test_datetime_root_tag(self) -> None:
+        """Test extraction of root DateTime EXIF tag."""
+        path = self._create_jpeg_with_exif(306, "2025:12:25 18:00:00", use_ifd=False)
+        result = extract_exif_datetime(path)
+        assert result == "2025-12-25T18:00:00"
+
+    def test_no_exif_data(self) -> None:
+        """Test that None is returned when no EXIF data exists."""
+        img = Image.new("RGB", (100, 100), color="white")
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)  # noqa: SIM115
+        img.save(tmp.name, format="PNG")
+        tmp.close()
+
+        result = extract_exif_datetime(tmp.name)
+        assert result is None
+
+    def test_corrupt_exif_returns_none(self) -> None:
+        """Test that corrupt EXIF data returns None gracefully."""
+        with patch("PIL.Image.open", side_effect=Exception("corrupt")):
+            result = extract_exif_datetime("/fake/path.jpg")
+            assert result is None
+
+    def test_priority_original_over_digitized(self) -> None:
+        """Test that DateTimeOriginal takes priority over DateTimeDigitized."""
+        img = Image.new("RGB", (100, 100), color="white")
+        exif = img.getexif()
+        ifd = exif.get_ifd(0x8769)
+        ifd[36867] = "2026:02:08 10:00:00"  # DateTimeOriginal
+        ifd[36868] = "2026:02:08 11:00:00"  # DateTimeDigitized
+
+        buf = BytesIO()
+        img.save(buf, format="JPEG", exif=exif.tobytes())
+        buf.seek(0)
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # noqa: SIM115
+        tmp.write(buf.read())
+        tmp.close()
+
+        result = extract_exif_datetime(tmp.name)
+        assert result == "2026-02-08T10:00:00"

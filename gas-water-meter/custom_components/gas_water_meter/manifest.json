@@ -1,7 +1,7 @@
 {
     "domain": "gas_water_meter",
     "name": "Gas & Water Meter",
-    "codeowners": [],
+    "codeowners": ["@ulfwuestefeld"],
     "config_flow": true,
     "dependencies": [],
     "documentation": "https://github.com/ulfwuestefeld/gasandwater",
