@@ -30,6 +30,7 @@ def is_heif_available() -> bool:
     """Return whether HEIC/HEIF image support is available."""
     return _HEIF_AVAILABLE
 
+
 # Check if pytesseract is available
 _TESSERACT_AVAILABLE = False
 try:

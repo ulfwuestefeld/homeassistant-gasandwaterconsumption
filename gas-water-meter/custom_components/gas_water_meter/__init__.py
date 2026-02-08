@@ -97,10 +97,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             hass.http.register_view(ImageUploadView(hass))
             hass.data[DOMAIN]["http_registered"] = True
         except Exception:
-            _LOGGER.warning(
-                "Could not register HTTP upload endpoint - "
-                "http component may not be available yet"
-            )
+            _LOGGER.warning("Could not register HTTP upload endpoint - http component may not be available yet")
 
     # Register frontend panel (once)
     if not hass.data[DOMAIN].get("panel_registered"):
@@ -108,10 +105,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             await _register_panel(hass)
             hass.data[DOMAIN]["panel_registered"] = True
         except Exception:
-            _LOGGER.warning(
-                "Could not register frontend panel - "
-                "panel_custom/frontend may not be available yet"
-            )
+            _LOGGER.warning("Could not register frontend panel - panel_custom/frontend may not be available yet")
 
     return True
 
