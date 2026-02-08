@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+import os
+import tempfile
+from unittest.mock import patch
 
 import pytest
 from custom_components.gas_water_meter.const import DOMAIN
+from custom_components.gas_water_meter.db import MeterDatabase
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant
 
-from .conftest import MOCK_GAS_CONFIG, MOCK_STORE_DATA, MOCK_WATER_CONFIG
+from .conftest import MOCK_GAS_CONFIG, MOCK_PRICES, MOCK_READINGS, MOCK_WATER_CONFIG
 
 try:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -22,27 +25,58 @@ async def _setup_entry(
     hass: HomeAssistant,
     config: dict,
     unique_id: str,
-    store_data: dict | None = None,
+    *,
+    populate_data: bool = True,
+    entry_id: str = "test_entry",
 ) -> MockConfigEntry:
-    """Set up a config entry for testing."""
-    with (
-        patch(
-            "custom_components.gas_water_meter.store.Store.async_load",
-            return_value=store_data or MOCK_STORE_DATA,
-        ),
-        patch(
-            "custom_components.gas_water_meter.store.Store.async_save",
-            new_callable=AsyncMock,
-        ),
-    ):
-        entry = MockConfigEntry(
-            domain=DOMAIN,
-            data=config,
-            unique_id=unique_id,
-        )
-        entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+    """Set up a config entry with a real temp DB for testing."""
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".db")
+    os.close(tmp_fd)
+
+    with patch.object(hass.config, "path", return_value=tmp_path):
+        db = MeterDatabase(hass)
+        await db.async_setup()
+
+    if populate_data:
+        for r in MOCK_READINGS:
+            await db.async_add_reading(
+                entry_id=entry_id,
+                meter_number=r["meter_number"],
+                reading=r["reading"],
+                timestamp=r["timestamp"],
+                image_path=r["image_path"],
+            )
+        for p in MOCK_PRICES:
+            await db.async_add_price(
+                entry_id=entry_id,
+                price_per_unit=p["price_per_unit"],
+                valid_from=p["valid_from"],
+                valid_to=p["valid_to"],
+                currency=p["currency"],
+            )
+
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["db"] = db
+    hass.data[DOMAIN]["ws_registered"] = True
+    hass.data[DOMAIN]["http_registered"] = True
+    hass.data[DOMAIN]["panel_registered"] = True
+
+    # Ensure DB is closed when HA stops
+    async def _close(event):
+        await db.async_close()
+
+    hass.bus.async_listen_once("homeassistant_stop", _close)
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=config,
+        unique_id=unique_id,
+        entry_id=entry_id,
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
     return entry
 
 
@@ -65,13 +99,10 @@ async def test_gas_reading_sensor(hass: HomeAssistant) -> None:
 
 async def test_water_reading_sensor(hass: HomeAssistant) -> None:
     """Test the water meter reading sensor has water device class."""
-    water_store_data = {**MOCK_STORE_DATA, "meter_type": "water"}
-
     await _setup_entry(
         hass,
         MOCK_WATER_CONFIG,
         "gas_water_meter_water_WAT-67890",
-        store_data=water_store_data,
     )
 
     states = hass.states.async_all("sensor")
@@ -132,22 +163,13 @@ async def test_cost_sensors(hass: HomeAssistant) -> None:
     assert float(last_cost[0].state) > 0
 
 
-async def test_empty_store_sensors_unknown(hass: HomeAssistant) -> None:
-    """Test that sensors show unknown state with empty store."""
-    empty_store = {
-        "meter_type": "gas",
-        "meter_name": "Kitchen",
-        "meter_number": "GAS-12345",
-        "currency": "EUR",
-        "readings": [],
-        "prices": [],
-    }
-
+async def test_empty_db_sensors_unknown(hass: HomeAssistant) -> None:
+    """Test that sensors show unknown state with empty database."""
     await _setup_entry(
         hass,
         MOCK_GAS_CONFIG,
         "gas_water_meter_gas_GAS-12345",
-        store_data=empty_store,
+        populate_data=False,
     )
 
     states = hass.states.async_all("sensor")

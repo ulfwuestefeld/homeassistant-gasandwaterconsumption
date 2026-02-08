@@ -1,7 +1,7 @@
 ---
 name: "Gas & Water Meter"
 description: "Manual gas and water meter reading entry with OCR, consumption projection, and cost tracking"
-version: "0.0.3"
+version: "0.0.4"
 slug: "gas_water_meter"
 url: "https://github.com/ulfwuestefeld/gasandwater"
 arch:
@@ -14,5 +14,6 @@ boot: "manual"
 init: false
 map:
   - config:rw
+  - media:rw
 options: {}
 schema: {}

@@ -5,6 +5,33 @@ All notable changes to the Gas & Water Meter add-on will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-02-08
+
+### Added
+
+- Graphical user interface (GUI) accessible via Home Assistant sidebar
+- SQLite database backend (replaces JSON file storage)
+- WebSocket API for frontend-backend communication
+- REST API endpoint for image uploads
+- Consumption chart visualization (Chart.js)
+- Price validity periods (valid_from / valid_to)
+- Photo upload with client-side validation (max 20 MB, max 21 MP)
+- Automatic migration from legacy JSON store to SQLite
+- HEIC/HEIF photo support via pillow-heif (pre-installed in add-on)
+
+### Changed
+
+- Storage migrated from HA JSON Store to SQLite via aiosqlite
+- Sensor entity category and device class fixes for HA 2025.1+ compliance
+- Sidebar title changed to English for international accessibility
+- Frontend panel fully internationalized (English/German) via hass.language
+
+### Fixed
+
+- Service handlers not being awaited (lambda wrapping issue)
+- Sensor validation errors for current_price and daily_average
+- Windows test compatibility with pytest-socket
+
 ## [0.0.3] - 2026-02-08
 
 ### Fixed

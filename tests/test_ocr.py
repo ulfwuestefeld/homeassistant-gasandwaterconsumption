@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import tempfile
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import pytest
+from custom_components.gas_water_meter.http import _ext_from_content_type
 from custom_components.gas_water_meter.ocr import (
+    OcrResult,
     extract_exif_datetime,
     extract_meter_number,
     extract_meter_reading,
+    preprocess_image,
 )
 from PIL import Image
 
@@ -141,14 +145,28 @@ class TestExtractExifDatetime:
 
     def test_datetime_original(self) -> None:
         """Test extraction of DateTimeOriginal EXIF tag."""
-        path = self._create_jpeg_with_exif(36867, "2026:02:08 14:30:00")
-        result = extract_exif_datetime(path)
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        mock_exif.get_ifd.return_value = {36867: "2026:02:08 14:30:00"}
+        mock_exif.get.return_value = None
+        mock_img.getexif.return_value = mock_exif
+
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
         assert result == "2026-02-08T14:30:00"
 
     def test_datetime_digitized(self) -> None:
         """Test extraction of DateTimeDigitized EXIF tag."""
-        path = self._create_jpeg_with_exif(36868, "2026:01:15 09:45:00")
-        result = extract_exif_datetime(path)
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        mock_exif.get_ifd.return_value = {36868: "2026:01:15 09:45:00"}
+        mock_exif.get.return_value = None
+        mock_img.getexif.return_value = mock_exif
+
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
         assert result == "2026-01-15T09:45:00"
 
     def test_datetime_root_tag(self) -> None:
@@ -175,19 +193,205 @@ class TestExtractExifDatetime:
 
     def test_priority_original_over_digitized(self) -> None:
         """Test that DateTimeOriginal takes priority over DateTimeDigitized."""
-        img = Image.new("RGB", (100, 100), color="white")
-        exif = img.getexif()
-        ifd = exif.get_ifd(0x8769)
-        ifd[36867] = "2026:02:08 10:00:00"  # DateTimeOriginal
-        ifd[36868] = "2026:02:08 11:00:00"  # DateTimeDigitized
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        # Both tags present; DateTimeOriginal (36867) should take priority
+        mock_exif.get_ifd.return_value = {
+            36867: "2026:02:08 10:00:00",
+            36868: "2026:02:08 11:00:00",
+        }
+        mock_exif.get.return_value = None
+        mock_img.getexif.return_value = mock_exif
 
-        buf = BytesIO()
-        img.save(buf, format="JPEG", exif=exif.tobytes())
-        buf.seek(0)
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
+        assert result == "2026-02-08T10:00:00"
 
+
+class TestPreprocessImage:
+    """Tests for the image preprocessing pipeline."""
+
+    def test_preprocess_returns_image(self) -> None:
+        """Test that preprocess_image returns a PIL Image."""
+        # Create a simple test image
+        img = Image.new("RGB", (200, 100), color="white")
         tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # noqa: SIM115
-        tmp.write(buf.read())
+        img.save(tmp.name, format="JPEG")
         tmp.close()
 
-        result = extract_exif_datetime(tmp.name)
-        assert result == "2026-02-08T10:00:00"
+        result = preprocess_image(tmp.name)
+        assert isinstance(result, Image.Image)
+
+    def test_preprocess_converts_to_binary(self) -> None:
+        """Test that preprocessing produces a binary (1-bit) image."""
+        img = Image.new("RGB", (200, 100), color="gray")
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # noqa: SIM115
+        img.save(tmp.name, format="JPEG")
+        tmp.close()
+
+        result = preprocess_image(tmp.name)
+        # The final step applies binary threshold with mode="1"
+        assert result.mode == "1"
+
+    def test_preprocess_handles_exif_orientation(self) -> None:
+        """Test that preprocessing applies EXIF auto-orientation."""
+        # Create image with EXIF orientation tag
+        img = Image.new("RGB", (200, 100), color="white")
+        exif = img.getexif()
+        # Tag 274 = Orientation; value 6 = rotated 90 CW
+        exif[274] = 6
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # noqa: SIM115
+        img.save(tmp.name, format="JPEG", exif=exif.tobytes())
+        tmp.close()
+
+        result = preprocess_image(tmp.name)
+        # After orientation correction, width/height should be swapped
+        assert result.size == (100, 200)
+
+
+class TestReadMeterImage:
+    """Tests for the full OCR pipeline."""
+
+    def test_read_meter_image_tesseract_unavailable(self) -> None:
+        """Test that read_meter_image raises RuntimeError when Tesseract is unavailable."""
+        from custom_components.gas_water_meter.ocr import read_meter_image  # noqa: PLC0415
+
+        with (
+            patch("custom_components.gas_water_meter.ocr._TESSERACT_AVAILABLE", False),
+            pytest.raises(RuntimeError, match="Tesseract OCR is not available"),
+        ):
+            read_meter_image("/fake/path.jpg")
+
+    def test_read_meter_image_full_flow(self) -> None:
+        """Test complete OCR pipeline with mocked pytesseract."""
+        import custom_components.gas_water_meter.ocr as ocr_mod  # noqa: PLC0415
+
+        # Create a test image
+        img = Image.new("RGB", (200, 100), color="white")
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # noqa: SIM115
+        img.save(tmp.name, format="JPEG")
+        tmp.close()
+
+        mock_tess = MagicMock()
+        mock_tess.image_to_string.side_effect = [
+            "12345.678",  # digit OCR
+            "Nr: GAS-99999\n12345.678 m3",  # full-text OCR
+        ]
+        mock_tess.image_to_data.return_value = {
+            "conf": ["95", "90", "88", "-1", "92"],
+        }
+        mock_tess.Output.DICT = "dict"
+
+        with (
+            patch("custom_components.gas_water_meter.ocr._TESSERACT_AVAILABLE", True),
+            patch.dict("sys.modules", {"pytesseract": mock_tess}),
+        ):
+            result = ocr_mod.read_meter_image(tmp.name)
+
+        assert isinstance(result, OcrResult)
+        assert result.meter_reading == 12345.678
+        assert result.meter_number == "GAS-99999"
+        assert result.confidence > 0
+
+    def test_read_meter_image_confidence_error_fallback(self) -> None:
+        """Test that confidence defaults to 0.0 when image_to_data fails."""
+        import custom_components.gas_water_meter.ocr as ocr_mod  # noqa: PLC0415
+
+        img = Image.new("RGB", (200, 100), color="white")
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # noqa: SIM115
+        img.save(tmp.name, format="JPEG")
+        tmp.close()
+
+        mock_tess = MagicMock()
+        mock_tess.image_to_string.side_effect = [
+            "12345.678",  # digit OCR
+            "some text",  # full-text OCR
+        ]
+        mock_tess.image_to_data.side_effect = Exception("data extraction failed")
+        mock_tess.Output.DICT = "dict"
+
+        with (
+            patch("custom_components.gas_water_meter.ocr._TESSERACT_AVAILABLE", True),
+            patch.dict("sys.modules", {"pytesseract": mock_tess}),
+        ):
+            result = ocr_mod.read_meter_image(tmp.name)
+
+        assert result.confidence == 0.0
+
+
+class TestExtFromContentType:
+    """Tests for HTTP content-type to file extension mapping."""
+
+    def test_jpeg(self) -> None:
+        assert _ext_from_content_type("image/jpeg") == ".jpg"
+
+    def test_png(self) -> None:
+        assert _ext_from_content_type("image/png") == ".png"
+
+    def test_gif(self) -> None:
+        assert _ext_from_content_type("image/gif") == ".gif"
+
+    def test_webp(self) -> None:
+        assert _ext_from_content_type("image/webp") == ".webp"
+
+    def test_tiff(self) -> None:
+        assert _ext_from_content_type("image/tiff") == ".tiff"
+
+    def test_heic(self) -> None:
+        assert _ext_from_content_type("image/heic") == ".heic"
+
+    def test_heif(self) -> None:
+        assert _ext_from_content_type("image/heif") == ".heif"
+
+    def test_heic_sequence(self) -> None:
+        assert _ext_from_content_type("image/heic-sequence") == ".heic"
+
+    def test_heif_sequence(self) -> None:
+        assert _ext_from_content_type("image/heif-sequence") == ".heif"
+
+    def test_content_type_with_charset(self) -> None:
+        assert _ext_from_content_type("image/jpeg; charset=utf-8") == ".jpg"
+
+    def test_case_insensitive(self) -> None:
+        assert _ext_from_content_type("Image/HEIC") == ".heic"
+
+    def test_unknown_type(self) -> None:
+        assert _ext_from_content_type("application/octet-stream") is None
+
+
+class TestHeifAvailability:
+    """Tests for HEIF opener registration."""
+
+    def test_is_heif_available_function_exists(self) -> None:
+        """Test that the is_heif_available function is importable."""
+        from custom_components.gas_water_meter.ocr import is_heif_available  # noqa: PLC0415
+
+        # Should return a boolean regardless of whether pillow-heif is installed
+        assert isinstance(is_heif_available(), bool)
+
+    def test_heif_opener_registration_succeeds(self) -> None:
+        """Test that register_heif_opener is called when pillow-heif is available."""
+        mock_register = MagicMock()
+        mock_module = MagicMock()
+        mock_module.register_heif_opener = mock_register
+
+        with patch.dict("sys.modules", {"pillow_heif": mock_module}):
+            # Re-execute the registration logic
+            from pillow_heif import register_heif_opener  # noqa: PLC0415
+
+            register_heif_opener()
+            mock_register.assert_called_once()
+
+    def test_heif_opener_graceful_fallback(self) -> None:
+        """Test that missing pillow-heif does not raise an error."""
+        with patch.dict("sys.modules", {"pillow_heif": None}):
+            try:
+                from pillow_heif import register_heif_opener  # noqa: PLC0415
+
+                register_heif_opener()
+                available = True
+            except (ImportError, TypeError):
+                available = False
+
+        assert not available

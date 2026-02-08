@@ -19,5 +19,8 @@ htmlcov/
 # Ruff
 .ruff_cache/
 
+# Node.js (frontend build)
+node_modules/
+
 # Symlink created for testing (points to gas-water-meter/custom_components/)
 custom_components

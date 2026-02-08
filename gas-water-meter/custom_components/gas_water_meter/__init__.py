@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components import panel_custom
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
@@ -20,7 +22,10 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import MeterCoordinator
+from .db import MeterDatabase
+from .http import ImageUploadView
 from .ocr import extract_exif_datetime, is_tesseract_available, read_meter_image
+from .websocket import async_register_websocket_commands
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,10 +69,88 @@ SCHEMA_READ_METER_IMAGE = vol.Schema(
 )
 
 
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the integration (domain-level, once)."""
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+
+    # Initialize shared database
+    if "db" not in hass.data[DOMAIN]:
+        db = MeterDatabase(hass)
+        await db.async_setup()
+        hass.data[DOMAIN]["db"] = db
+
+        # Close DB when HA shuts down
+        async def _close_db(event: Any) -> None:
+            await db.async_close()
+
+        hass.bus.async_listen_once("homeassistant_stop", _close_db)
+
+    # Register WebSocket commands (once)
+    if not hass.data[DOMAIN].get("ws_registered"):
+        async_register_websocket_commands(hass)
+        hass.data[DOMAIN]["ws_registered"] = True
+
+    # Register REST upload endpoint (once)
+    if not hass.data[DOMAIN].get("http_registered"):
+        try:
+            hass.http.register_view(ImageUploadView(hass))
+            hass.data[DOMAIN]["http_registered"] = True
+        except Exception:
+            _LOGGER.warning(
+                "Could not register HTTP upload endpoint - "
+                "http component may not be available yet"
+            )
+
+    # Register frontend panel (once)
+    if not hass.data[DOMAIN].get("panel_registered"):
+        try:
+            await _register_panel(hass)
+            hass.data[DOMAIN]["panel_registered"] = True
+        except Exception:
+            _LOGGER.warning(
+                "Could not register frontend panel - "
+                "panel_custom/frontend may not be available yet"
+            )
+
+    return True
+
+
+async def _register_panel(hass: HomeAssistant) -> None:
+    """Register the sidebar panel for the frontend."""
+    await hass.http.async_register_static_paths(
+        [
+            StaticPathConfig(
+                "/gas_water_meter_panel",
+                hass.config.path("custom_components/gas_water_meter/frontend"),
+                cache_headers=False,
+            )
+        ]
+    )
+    await panel_custom.async_register_panel(
+        hass=hass,
+        frontend_url_path="gas-water-meter",
+        webcomponent_name="gas-water-meter-panel",
+        module_url="/gas_water_meter_panel/entrypoint.js",
+        sidebar_title="Gas & Water Meter",
+        sidebar_icon="mdi:meter-gas-outline",
+        embed_iframe=True,
+        require_admin=False,
+    )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: GasWaterMeterConfigEntry) -> bool:
     """Set up Gas & Water Meter from a config entry."""
-    coordinator = MeterCoordinator(hass, entry)
-    await coordinator.async_setup()
+    # Ensure domain-level setup has run
+    if DOMAIN not in hass.data or "db" not in hass.data[DOMAIN]:
+        await async_setup(hass, {})
+
+    db: MeterDatabase = hass.data[DOMAIN]["db"]
+
+    # Migrate legacy JSON data if needed
+    await db.async_migrate_from_store(entry.entry_id)
+
+    coordinator = MeterCoordinator(hass, entry, db)
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = coordinator
@@ -86,10 +169,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: GasWaterMeterConfigEntr
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     # Remove services if last entry
-    if not hass.config_entries.async_entries(DOMAIN):
-        hass.services.async_remove(DOMAIN, SERVICE_RECORD_READING)
-        hass.services.async_remove(DOMAIN, SERVICE_SET_PRICE)
-        hass.services.async_remove(DOMAIN, SERVICE_READ_METER_IMAGE)
+    remaining = hass.config_entries.async_entries(DOMAIN)
+    if len(remaining) <= 1:
+        for svc in (SERVICE_RECORD_READING, SERVICE_SET_PRICE, SERVICE_READ_METER_IMAGE):
+            hass.services.async_remove(DOMAIN, svc)
 
     return unload_ok
 
@@ -114,7 +197,7 @@ async def _handle_record_reading(hass: HomeAssistant, call: ServiceCall) -> None
     """Handle the record_reading service call."""
     entry_id = call.data[ATTR_CONFIG_ENTRY_ID]
     coordinator = _get_coordinator(hass, entry_id)
-    store = coordinator.store
+    db: MeterDatabase = hass.data[DOMAIN]["db"]
 
     meter_reading: float | None = call.data.get(ATTR_METER_READING)
     meter_number: str | None = call.data.get(ATTR_METER_NUMBER)
@@ -140,8 +223,7 @@ async def _handle_record_reading(hass: HomeAssistant, call: ServiceCall) -> None
     # Handle image and OCR
     saved_image_path: str | None = None
     if image_path is not None:
-        saved_image_path = await _save_and_validate_image(hass, store, entry_id, image_path, timestamp_str)
-
+        saved_image_path = await _save_and_validate_image(hass, db, entry_id, image_path, timestamp_str)
         # Attempt OCR if meter_reading not provided
         if meter_reading is None:
             meter_reading, meter_number = await _extract_ocr(hass, image_path, meter_number)
@@ -154,7 +236,7 @@ async def _handle_record_reading(hass: HomeAssistant, call: ServiceCall) -> None
         )
 
     # Validate reading >= last reading
-    last = store.get_last_reading()
+    last = await db.async_get_last_reading(entry_id)
     if last is not None and meter_reading < last["reading"]:
         raise ServiceValidationError(
             translation_domain=DOMAIN,
@@ -162,7 +244,8 @@ async def _handle_record_reading(hass: HomeAssistant, call: ServiceCall) -> None
         )
 
     # Store the reading
-    await store.async_add_reading(
+    await db.async_add_reading(
+        entry_id=entry_id,
         reading=meter_reading,
         meter_number=meter_number or "",
         timestamp=timestamp_str,
@@ -174,7 +257,11 @@ async def _handle_record_reading(hass: HomeAssistant, call: ServiceCall) -> None
 
 
 async def _save_and_validate_image(
-    hass: HomeAssistant, store: Any, entry_id: str, image_path: str, timestamp_str: str
+    hass: HomeAssistant,
+    db: MeterDatabase,
+    entry_id: str,
+    image_path: str,
+    timestamp_str: str,
 ) -> str:
     """Validate image exists and save it to storage."""
     if not await hass.async_add_executor_job(os.path.isfile, image_path):
@@ -182,7 +269,7 @@ async def _save_and_validate_image(
             translation_domain=DOMAIN,
             translation_key="image_not_found",
         )
-    return await store.async_save_image(image_path, entry_id, timestamp_str)
+    return await db.async_save_image(image_path, entry_id, timestamp_str)
 
 
 async def _extract_ocr(
@@ -214,6 +301,7 @@ async def _handle_set_price(hass: HomeAssistant, call: ServiceCall) -> None:
     """Handle the set_price service call."""
     entry_id = call.data[ATTR_CONFIG_ENTRY_ID]
     coordinator = _get_coordinator(hass, entry_id)
+    db: MeterDatabase = hass.data[DOMAIN]["db"]
 
     price = call.data[ATTR_PRICE_PER_UNIT]
     valid_from: str | None = call.data.get(ATTR_VALID_FROM)
@@ -227,7 +315,8 @@ async def _handle_set_price(hass: HomeAssistant, call: ServiceCall) -> None:
     if entry is not None:
         currency = entry.data.get(CONF_CURRENCY, "EUR")
 
-    await coordinator.store.async_add_price(
+    await db.async_add_price(
+        entry_id=entry_id,
         price_per_unit=price,
         valid_from=valid_from,
         currency=currency,
@@ -266,22 +355,32 @@ async def _handle_read_meter_image(hass: HomeAssistant, call: ServiceCall) -> di
 
 def _register_services(hass: HomeAssistant) -> None:
     """Register all services for the integration."""
+
+    async def _svc_record_reading(call: ServiceCall) -> None:
+        await _handle_record_reading(hass, call)
+
+    async def _svc_set_price(call: ServiceCall) -> None:
+        await _handle_set_price(hass, call)
+
+    async def _svc_read_meter_image(call: ServiceCall) -> dict[str, Any]:
+        return await _handle_read_meter_image(hass, call)
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_RECORD_READING,
-        lambda call: _handle_record_reading(hass, call),
+        _svc_record_reading,
         schema=SCHEMA_RECORD_READING,
     )
     hass.services.async_register(
         DOMAIN,
         SERVICE_SET_PRICE,
-        lambda call: _handle_set_price(hass, call),
+        _svc_set_price,
         schema=SCHEMA_SET_PRICE,
     )
     hass.services.async_register(
         DOMAIN,
         SERVICE_READ_METER_IMAGE,
-        lambda call: _handle_read_meter_image(hass, call),
+        _svc_read_meter_image,
         schema=SCHEMA_READ_METER_IMAGE,
         supports_response=SupportsResponse.ONLY,
     )

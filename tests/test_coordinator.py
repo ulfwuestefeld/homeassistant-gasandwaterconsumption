@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 from custom_components.gas_water_meter.const import DAYS_PER_MONTH, DAYS_PER_YEAR
 from custom_components.gas_water_meter.coordinator import MeterCoordinator, _days_between
+from custom_components.gas_water_meter.db import MeterDatabase
 from homeassistant.core import HomeAssistant
 
-from .conftest import MOCK_GAS_CONFIG, MOCK_STORE_DATA
+from .conftest import MOCK_GAS_CONFIG
 
 try:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -39,17 +38,17 @@ def test_days_between_invalid_timestamps() -> None:
     assert _days_between("2026-01-01T10:00:00+00:00", "invalid") is None
 
 
-async def test_coordinator_computes_core_data(hass: HomeAssistant, mock_store_load, mock_store_save) -> None:
+async def test_coordinator_computes_core_data(hass: HomeAssistant, mock_db: MeterDatabase) -> None:
     """Test that coordinator computes core sensor values correctly."""
     entry = MockConfigEntry(
         domain="gas_water_meter",
         data=MOCK_GAS_CONFIG,
         unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
     )
     entry.add_to_hass(hass)
 
-    coordinator = MeterCoordinator(hass, entry)
-    await coordinator.async_setup()
+    coordinator = MeterCoordinator(hass, entry, mock_db)
     await coordinator.async_refresh()
 
     data = coordinator.data
@@ -70,17 +69,17 @@ async def test_coordinator_computes_core_data(hass: HomeAssistant, mock_store_lo
     assert abs(data.days_between - 17.0) < 0.1
 
 
-async def test_coordinator_computes_projection(hass: HomeAssistant, mock_store_load, mock_store_save) -> None:
+async def test_coordinator_computes_projection(hass: HomeAssistant, mock_db: MeterDatabase) -> None:
     """Test projection calculations."""
     entry = MockConfigEntry(
         domain="gas_water_meter",
         data=MOCK_GAS_CONFIG,
         unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
     )
     entry.add_to_hass(hass)
 
-    coordinator = MeterCoordinator(hass, entry)
-    await coordinator.async_setup()
+    coordinator = MeterCoordinator(hass, entry, mock_db)
     await coordinator.async_refresh()
 
     data = coordinator.data
@@ -88,7 +87,7 @@ async def test_coordinator_computes_projection(hass: HomeAssistant, mock_store_l
 
     # Total consumption: 125.3 - 100.0 = 25.3
     # Total days: Jan 1 to Feb 1 = 31 days
-    # Daily average: 25.3 / 31 ≈ 0.8161
+    # Daily average: 25.3 / 31 ~ 0.8161
     assert data.daily_average is not None
     assert abs(data.daily_average - (25.3 / 31.0)) < 0.001
 
@@ -103,17 +102,17 @@ async def test_coordinator_computes_projection(hass: HomeAssistant, mock_store_l
     assert abs(data.yearly_projection - expected_yearly) < 1.0
 
 
-async def test_coordinator_computes_costs(hass: HomeAssistant, mock_store_load, mock_store_save) -> None:
+async def test_coordinator_computes_costs(hass: HomeAssistant, mock_db: MeterDatabase) -> None:
     """Test cost calculations."""
     entry = MockConfigEntry(
         domain="gas_water_meter",
         data=MOCK_GAS_CONFIG,
         unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
     )
     entry.add_to_hass(hass)
 
-    coordinator = MeterCoordinator(hass, entry)
-    await coordinator.async_setup()
+    coordinator = MeterCoordinator(hass, entry, mock_db)
     await coordinator.async_refresh()
 
     data = coordinator.data
@@ -135,17 +134,17 @@ async def test_coordinator_computes_costs(hass: HomeAssistant, mock_store_load, 
     assert data.yearly_projected_cost is not None
 
 
-async def test_coordinator_empty_store(hass: HomeAssistant, mock_store_empty, mock_store_save) -> None:
+async def test_coordinator_empty_db(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
     """Test coordinator with no readings."""
     entry = MockConfigEntry(
         domain="gas_water_meter",
         data=MOCK_GAS_CONFIG,
         unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
     )
     entry.add_to_hass(hass)
 
-    coordinator = MeterCoordinator(hass, entry)
-    await coordinator.async_setup()
+    coordinator = MeterCoordinator(hass, entry, mock_db_empty)
     await coordinator.async_refresh()
 
     data = coordinator.data
@@ -165,28 +164,27 @@ async def test_coordinator_empty_store(hass: HomeAssistant, mock_store_empty, mo
     assert data.yearly_projected_cost is None
 
 
-async def test_coordinator_single_reading(hass: HomeAssistant, mock_store_save) -> None:
+async def test_coordinator_single_reading(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
     """Test coordinator with only one reading (no delta/projection possible)."""
-    single_reading_data = {
-        **MOCK_STORE_DATA,
-        "readings": [MOCK_STORE_DATA["readings"][0]],
-        "prices": [],
-    }
+    db = mock_db_empty
 
-    with patch(
-        "custom_components.gas_water_meter.store.Store.async_load",
-        return_value=single_reading_data,
-    ):
-        entry = MockConfigEntry(
-            domain="gas_water_meter",
-            data=MOCK_GAS_CONFIG,
-            unique_id="gas_water_meter_gas_GAS-12345",
-        )
-        entry.add_to_hass(hass)
+    await db.async_add_reading(
+        entry_id="test_entry",
+        meter_number="GAS-12345",
+        reading=100.0,
+        timestamp="2026-01-01T10:00:00+00:00",
+    )
 
-        coordinator = MeterCoordinator(hass, entry)
-        await coordinator.async_setup()
-        await coordinator.async_refresh()
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+    )
+    entry.add_to_hass(hass)
+
+    coordinator = MeterCoordinator(hass, entry, db)
+    await coordinator.async_refresh()
 
     data = coordinator.data
     assert data is not None

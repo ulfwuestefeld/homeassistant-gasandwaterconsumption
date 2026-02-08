@@ -6,7 +6,7 @@
         "component": {
             "type": "application",
             "name": "gas_water_meter",
-            "version": "0.0.3",
+            "version": "0.0.4",
             "description": "Home Assistant add-on and custom integration for manual gas and water meter reading entry with OCR, projection, and cost tracking",
             "licenses": [
                 {
@@ -32,6 +32,66 @@
             ],
             "purl": "pkg:pypi/pytesseract",
             "scope": "optional"
+        },
+        {
+            "type": "library",
+            "name": "aiosqlite",
+            "version": ">=0.20.0",
+            "description": "Async wrapper for sqlite3 using aio",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:pypi/aiosqlite",
+            "scope": "required"
+        },
+        {
+            "type": "library",
+            "name": "lit",
+            "version": "^3.2.0",
+            "description": "Simple, fast web components",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "BSD-3-Clause"
+                    }
+                }
+            ],
+            "purl": "pkg:npm/lit",
+            "scope": "required"
+        },
+        {
+            "type": "library",
+            "name": "chart.js",
+            "version": "^4.4.0",
+            "description": "Simple yet flexible JavaScript charting library",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:npm/chart.js",
+            "scope": "required"
+        },
+        {
+            "type": "library",
+            "name": "pillow-heif",
+            "version": ">=0.18.0",
+            "description": "Python interface for libheif - HEIC/HEIF image support for Pillow",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "BSD-3-Clause"
+                    }
+                }
+            ],
+            "purl": "pkg:pypi/pillow-heif",
+            "scope": "required"
         },
         {
             "type": "application",

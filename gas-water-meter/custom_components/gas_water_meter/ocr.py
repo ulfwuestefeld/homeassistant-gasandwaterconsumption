@@ -15,6 +15,21 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Register HEIC/HEIF support if pillow-heif is installed
+_HEIF_AVAILABLE = False
+try:
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()
+    _HEIF_AVAILABLE = True
+except ImportError:
+    _LOGGER.debug("pillow-heif is not installed - HEIC/HEIF photo support unavailable")
+
+
+def is_heif_available() -> bool:
+    """Return whether HEIC/HEIF image support is available."""
+    return _HEIF_AVAILABLE
+
 # Check if pytesseract is available
 _TESSERACT_AVAILABLE = False
 try:

@@ -4,15 +4,19 @@ A Home Assistant add-on that provides a custom integration for manually recordin
 
 ## Features
 
-- **Manual meter reading entry** via Home Assistant services
+- **Graphical user interface** — sidebar panel for managing meters, readings, prices, and photo uploads directly in the browser
+- **Manual meter reading entry** — via GUI panel or Home Assistant services
 - **Multiple meters** — add as many gas and/or water meters as needed
 - **Energy Dashboard compatible** — sensors use `state_class: total_increasing` with proper device classes
-- **Photo capture** — attach photos to meter readings for documentation
+- **Photo capture & upload** — attach photos in JPEG, PNG, HEIC/HEIF format (max 20 MB, 21 megapixels) with client-side validation
 - **Tesseract OCR** — extract meter readings and serial numbers from photos (pre-installed in add-on)
+- **HEIC/HEIF support** — Apple photo format supported via pillow-heif (pre-installed in add-on)
 - **EXIF date extraction** — when uploading a photo without a timestamp, the capture date from the photo's EXIF data is used automatically
+- **Consumption chart** — Chart.js visualization of historical consumption and meter readings
 - **Consumption projection** — daily average, monthly, and yearly projections based on historical data
-- **Price tracking** — record current and historical prices for cost calculations
+- **Price tracking** — record prices with validity periods (valid_from / valid_to) for cost calculations
 - **Cost sensors** — last period cost, monthly and yearly projected costs
+- **SQLite storage** — persistent data storage using SQLite via aiosqlite
 - **Full i18n** — English and German translations
 
 ## Sensors (per meter)
@@ -69,7 +73,17 @@ After restarting Home Assistant:
 
 ## Usage
 
-### Recording a Meter Reading
+### Sidebar Panel (GUI)
+
+After installation, a **Gas & Water Meter** entry appears in the Home Assistant sidebar. The panel provides:
+
+- **Meter selection** — switch between configured meters via tabs
+- **Reading entry** — enter meter readings manually or upload a photo for OCR
+- **History table** — view, edit, and delete past readings with consumption data
+- **Price management** — set prices with validity periods (valid_from / valid_to)
+- **Consumption chart** — visualize consumption trends over time
+
+### Recording a Meter Reading (Service)
 
 Call the `gas_water_meter.record_reading` service:
 
@@ -141,7 +155,19 @@ When a new version is available:
 │   ├── translations/            # Add-on translations
 │   └── custom_components/       # The HA custom integration
 │       └── gas_water_meter/
-├── tests/                       # Unit tests
+│           ├── __init__.py      # Entry setup, services, panel registration
+│           ├── config_flow.py   # UI config flow + options flow
+│           ├── const.py         # Constants, icon mappings
+│           ├── coordinator.py   # Data coordinator (projection + cost)
+│           ├── db.py            # SQLite database layer (aiosqlite)
+│           ├── http.py          # REST API for image uploads
+│           ├── websocket.py     # WebSocket API for frontend
+│           ├── ocr.py           # Tesseract OCR wrapper + EXIF + HEIC/HEIF
+│           ├── sensor.py        # 12 sensor entities per meter
+│           ├── store.py         # Legacy JSON storage (migration only)
+│           └── frontend/        # Bundled panel JS (Lit + Chart.js)
+├── frontend-src/                # Frontend source (Lit, Chart.js, Rollup)
+├── tests/                       # Unit tests (115 tests)
 ├── .github/workflows/           # CI (lint + test)
 ├── pyproject.toml               # Python project config
 └── requirements_test.txt        # Test dependencies
@@ -169,4 +195,4 @@ MIT License. See [FOSS.md](FOSS.md) for third-party licenses.
 
 ## Version
 
-0.0.3 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.0.4 — See [CHANGELOG.md](CHANGELOG.md) for details.

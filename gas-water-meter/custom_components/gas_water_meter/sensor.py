@@ -99,8 +99,6 @@ SENSOR_DESCRIPTIONS: tuple[MeterSensorDescription, ...] = (
         key="daily_average",
         translation_key="daily_average",
         state_class=SensorStateClass.MEASUREMENT,
-        gas_device_class=SensorDeviceClass.GAS,
-        water_device_class=SensorDeviceClass.WATER,
         native_unit_of_measurement=f"{UnitOfVolume.CUBIC_METERS}/d",
         suggested_display_precision=4,
         value_fn=lambda data: data.daily_average,
@@ -128,7 +126,7 @@ SENSOR_DESCRIPTIONS: tuple[MeterSensorDescription, ...] = (
         key="current_price",
         translation_key="current_price",
         device_class=SensorDeviceClass.MONETARY,
-        entity_category=EntityCategory.CONFIG,
+        entity_category=EntityCategory.DIAGNOSTIC,
         dynamic_unit=True,
         suggested_display_precision=4,
         value_fn=lambda data: data.current_price,
@@ -211,7 +209,7 @@ class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
             name=f"{device_prefix} - {meter_name}",
             manufacturer="Manual Entry",
             model=f"{meter_type.capitalize()} Meter",
-            sw_version="0.0.3",
+            sw_version="0.0.4",
         )
 
     @property

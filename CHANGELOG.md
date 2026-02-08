@@ -5,6 +5,39 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-02-08
+
+### Added
+
+- **Graphical user interface (GUI)** — new sidebar panel built with Lit for managing meters, readings, prices, and photos directly in the browser
+- **SQLite database** — persistent storage migrated from JSON files to SQLite via `aiosqlite` for better performance and reliability
+- **WebSocket API** — custom commands for frontend-backend communication (CRUD for readings, prices, meters, statistics)
+- **REST API** — dedicated HTTP endpoint for multipart image uploads with OCR and EXIF extraction
+- **Consumption chart** — Chart.js visualization of historical consumption and meter readings
+- **Price validity periods** — prices now support `valid_from` and optional `valid_to` dates
+- **Photo upload via GUI** — upload meter photos directly from the sidebar panel with client-side validation (max 20 MB, max 21 megapixels)
+- **Automatic data migration** — existing JSON store data is automatically migrated to SQLite on first startup
+- **HEIC/HEIF photo support** — upload photos in Apple HEIC/HEIF format (via `pillow-heif`); automatic conversion for OCR and EXIF extraction
+
+### Changed
+
+- Storage backend changed from `homeassistant.helpers.storage.Store` (JSON) to SQLite (`aiosqlite`)
+- Service handlers refactored to use proper `async def` wrappers instead of lambdas
+- `current_price` sensor entity category changed from `CONFIG` to `DIAGNOSTIC` (HA 2025.1+ compliance)
+- `daily_average` sensor no longer uses gas/water device class (incompatible with rate unit `m³/d`)
+- `panel_custom` and `http` removed from `manifest.json` dependencies (always available in HA core)
+- Sidebar title changed to English ("Gas & Water Meter") for international accessibility
+- Frontend panel fully internationalized (English/German) using `hass.language`
+
+### Fixed
+
+- Service handlers not being awaited due to lambda wrapping (readings not saved)
+- Sensor entity category validation error for `current_price` sensor
+- Device class / unit incompatibility for `daily_average` sensor
+- EXIF datetime extraction tests using mock-based approach for reliability
+- Windows test compatibility with `pytest-socket` and `ProactorEventLoop`
+- Unclosed database connections in test teardown
+
 ## [0.0.3] - 2026-02-08
 
 ### Fixed

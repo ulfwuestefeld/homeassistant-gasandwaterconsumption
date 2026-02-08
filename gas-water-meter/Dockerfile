@@ -1,8 +1,9 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-# Install Tesseract OCR for optional meter photo reading
-RUN apk add --no-cache tesseract-ocr dos2unix
+# Install Tesseract OCR, libheif, and pip packages
+RUN apk add --no-cache tesseract-ocr dos2unix py3-pip libheif
+RUN pip3 install --no-cache-dir aiosqlite pillow-heif
 
 # Copy the custom integration files
 COPY custom_components /usr/share/custom_components

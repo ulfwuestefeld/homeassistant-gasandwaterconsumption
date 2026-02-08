@@ -17,7 +17,7 @@ You use mocks for mocking external systems.
 - **Domain**: `gas_water_meter`
 - **Type**: Home Assistant Add-on containing a custom integration (service, calculated)
 - **Distribution**: Private GitHub repository, installed via SSH deploy key as add-on repository
-- **Version**: 0.0.3
+- **Version**: 0.0.4
 - **Python**: >= 3.12
 - **Pattern**: Async-first, config-entry-based, coordinator pattern (no polling)
 - **HA Skill**: Use the `homeassistant-development` Cursor skill for HA patterns
@@ -37,19 +37,29 @@ You use mocks for mocking external systems.
 │   ├── translations/                # Add-on translations (en, de)
 │   └── custom_components/           # The HA custom integration
 │       └── gas_water_meter/
-│           ├── __init__.py          # Entry setup, service registration
+│           ├── __init__.py          # Entry setup, services, panel registration
 │           ├── config_flow.py       # UI config flow + options flow
 │           ├── const.py             # Constants, icon mappings
 │           ├── coordinator.py       # Data coordinator (projection + cost)
+│           ├── db.py                # SQLite database layer (aiosqlite)
+│           ├── http.py              # REST API for image uploads
+│           ├── websocket.py         # WebSocket API for frontend communication
 │           ├── icons.json           # Entity icons
 │           ├── manifest.json        # Integration metadata
-│           ├── ocr.py               # Tesseract OCR wrapper
+│           ├── ocr.py               # Tesseract OCR wrapper + EXIF extraction
 │           ├── sensor.py            # 12 sensor entities per meter
 │           ├── services.yaml        # Service definitions
-│           ├── store.py             # Persistent storage
+│           ├── store.py             # Legacy JSON storage (migration only)
 │           ├── strings.json         # Translation source
-│           └── translations/        # en.json, de.json
-├── tests/                           # Unit tests (pytest)
+│           ├── translations/        # en.json, de.json
+│           └── frontend/            # Bundled panel JS (Lit + Chart.js)
+│               └── entrypoint.js    # Rollup output
+├── frontend-src/                    # Frontend source (Lit, Chart.js, Rollup)
+│   ├── package.json                 # Frontend dependencies
+│   ├── rollup.config.mjs           # Rollup build config
+│   └── src/
+│       └── gas-water-meter-panel.js # LitElement sidebar panel
+├── tests/                           # Unit tests (pytest, 115 tests)
 ├── .github/workflows/tests.yml      # CI: lint + test
 ├── pyproject.toml                   # Python project config (pythonpath: gas-water-meter)
 └── requirements_test.txt            # Test dependencies
@@ -61,11 +71,19 @@ You use mocks for mocking external systems.
 - 12 sensors per meter: core (5) + projection (3) + cost (4)
 - Services: record_reading, set_price, read_meter_image
 - OCR: Tesseract via pytesseract (optional, graceful degradation)
-- Storage: homeassistant.helpers.storage.Store (JSON, one file per entry)
+- EXIF: Automatic timestamp extraction from photos
+- Storage: SQLite via aiosqlite (db.py); legacy JSON store (store.py) kept for migration only
+- Frontend: Sidebar panel built with Lit, bundled via Rollup into frontend/entrypoint.js; full i18n via TRANSLATIONS dict + hass.language (en, de)
+- Chart: Chart.js for consumption visualization
+- WebSocket API: Custom commands in websocket.py for frontend-backend CRUD (readings, prices, meters, statistics)
+- REST API: http.py provides /api/gas_water_meter/upload_image for multipart photo uploads (max 20 MB, 21 MP)
+- Prices: Support validity periods (valid_from, optional valid_to)
 - Energy Dashboard: reading sensor with state_class TOTAL_INCREASING
 - Gas vs Water: Distinguished by device_class, icons, device name, persistence
 - Add-on copies integration files to /config/custom_components/ on startup
 - Tests use `pythonpath = ["gas-water-meter"]` in pyproject.toml
+- HEIC/HEIF: pillow-heif registers opener for Pillow; libheif system library in add-on container
+- Dependencies: pytesseract (optional), aiosqlite (required), pillow-heif (required), lit + chart.js (frontend, bundled)
 
 # Quality Checklist
 
