@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -57,11 +57,15 @@ class MeterCoordinatorData:
     extra: dict[str, Any] = field(default_factory=dict)
 
 
+_UPDATE_INTERVAL = timedelta(seconds=60)
+
+
 class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
     """Coordinator for a single meter.
 
-    This coordinator does not poll. It is refreshed manually when new data
-    is recorded via services or WebSocket commands.
+    Data is refreshed immediately when new readings or prices are recorded
+    via services or WebSocket commands.  A 60-second polling interval acts
+    as a safety net so sensors always converge on the latest DB state.
     """
 
     config_entry: ConfigEntry
@@ -73,7 +77,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             _LOGGER,
             name=f"{DOMAIN}_{entry.entry_id}",
             config_entry=entry,
-            # No update_interval -- manual refresh only
+            update_interval=_UPDATE_INTERVAL,
         )
         self.db = db
         self._entry_id: str = entry.entry_id
@@ -84,7 +88,15 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
     async def _async_update_data(self) -> MeterCoordinatorData:
         """Compute all sensor values from stored data."""
-        return await self._compute_data()
+        data = await self._compute_data()
+        _LOGGER.debug(
+            "Coordinator %s refreshed: reading=%s, consumption=%s, price=%s",
+            self._entry_id,
+            data.reading,
+            data.consumption,
+            data.current_price,
+        )
+        return data
 
     async def _compute_data(self) -> MeterCoordinatorData:
         """Compute all derived values from DB readings and prices."""
@@ -99,6 +111,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         first = await self.db.async_get_first_reading(self._entry_id)
 
         if last is None:
+            _LOGGER.debug("No readings found for entry %s", self._entry_id)
             return data
 
         # Core values

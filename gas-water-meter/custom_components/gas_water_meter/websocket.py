@@ -347,12 +347,19 @@ async def ws_get_statistics(
 async def _refresh_coordinator(hass: HomeAssistant, entry_id: str) -> None:
     """Refresh the coordinator for one entry."""
     entry = hass.config_entries.async_get_entry(entry_id)
-    if entry and hasattr(entry, "runtime_data") and entry.runtime_data:
-        await entry.runtime_data.async_request_refresh()
+    if entry is None:
+        _LOGGER.warning("Cannot refresh coordinator: entry %s not found", entry_id)
+        return
+    coordinator = getattr(entry, "runtime_data", None)
+    if coordinator is None:
+        _LOGGER.warning("Cannot refresh coordinator: entry %s has no runtime_data", entry_id)
+        return
+    await coordinator.async_request_refresh()
 
 
 async def _refresh_all_coordinators(hass: HomeAssistant) -> None:
     """Refresh coordinators for all entries (used after update/delete where entry_id is unknown)."""
     for entry in hass.config_entries.async_entries(DOMAIN):
-        if hasattr(entry, "runtime_data") and entry.runtime_data:
-            await entry.runtime_data.async_request_refresh()
+        coordinator = getattr(entry, "runtime_data", None)
+        if coordinator is not None:
+            await coordinator.async_request_refresh()
