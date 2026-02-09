@@ -227,4 +227,4 @@ MIT License. See [FOSS.md](FOSS.md) for third-party licenses.
 
 ## Version
 
-0.1.3 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.1.5 — See [CHANGELOG.md](CHANGELOG.md) for details.
