@@ -5,6 +5,29 @@ All notable changes to the Gas & Water Meter add-on will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-02-09
+
+### Added
+
+- Tesseract auto-installation on first startup (apk for Alpine/HAOS, apt-get for Debian/Ubuntu)
+- OCR feedback in upload response (ocr_available flag, success/warning hints in UI)
+- EXIF timezone offset extraction (OffsetTimeOriginal, OffsetTimeDigitized, OffsetTime)
+- External statistics import with correct reading timestamps for Energy Dashboard
+
+### Fixed
+
+- Consumption attributed to entry date instead of reading date (removed state_class from reading sensor)
+- EXIF timestamps 1 hour too early (timezone offsets now correctly parsed)
+- ha-icon not rendering in Companion App (switched to attribute bindings)
+- Sidebar menu inaccessible in Companion App (hamburger button always visible)
+- Multiple Ruff lint violations across codebase
+
+### Changed
+
+- Energy Dashboard must use external statistic gas_water_meter:<entry_id> instead of sensor entity
+- ocr.py refactored with auto-install workflow (ensure_tesseract)
+- async_setup calls ensure_tesseract on first load
+
 ## [0.1.1] - 2026-02-09
 
 ### Added

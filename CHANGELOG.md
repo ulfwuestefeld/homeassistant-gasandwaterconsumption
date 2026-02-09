@@ -5,6 +5,30 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-02-09
+
+### Added
+
+- **Tesseract auto-installation** - automatically installs `tesseract-ocr` and language packs (`eng`, `deu`) on first startup via `apk` (Alpine/HAOS) or `apt-get` (Debian/Ubuntu)
+- **OCR feedback in UI** - upload response includes `ocr_available` flag; frontend shows success/warning hints after photo upload (Tesseract unavailable, no reading found, successful pre-fill)
+- **EXIF timezone support** - correctly extracts `OffsetTimeOriginal`, `OffsetTimeDigitized`, and `OffsetTime` EXIF tags; appends timezone offset to ISO datetime string
+- **External statistics for Energy Dashboard** - coordinator imports all readings as external statistics (`gas_water_meter:<entry_id>`) with the reading's actual timestamp, enabling correct historical consumption charts
+
+### Fixed
+
+- **Consumption attributed to entry date instead of reading date** - removed `state_class=TOTAL_INCREASING` from the reading sensor; HA's recorder no longer creates auto-statistics at the entry time; the Energy Dashboard now uses external statistics with correct reading timestamps
+- **EXIF timestamps 1 hour too early** - timezone offsets from EXIF data were not being extracted, causing naive UTC interpretation; now correctly parsed and appended
+- **`ha-icon` not rendering in Companion App** - switched from Lit property bindings (`.icon=`) to HTML attribute bindings (`icon=`) for reliable rendering in custom panels
+- **Sidebar menu inaccessible in Companion App** - hamburger menu button is now always displayed, removing the unreliable `narrow` property check
+- **Ruff lint violations** - fixed N806, RUF003, RUF001, S607, TRY300, I001, UP017, B905, PLC0415, RUF100, F401 across backend codebase
+
+### Changed
+
+- Reading sensor no longer has `state_class`; Energy Dashboard must use external statistic `gas_water_meter:<entry_id>` instead of the sensor entity
+- `ocr.py` refactored: `_check_tesseract()`, `_install_tesseract()`, `ensure_tesseract()` for auto-install workflow
+- `__init__.py` calls `ensure_tesseract()` during `async_setup` (runs once via `hass.async_add_executor_job`)
+- Python test count increased from ~120 to 227; frontend test count increased from 27 to 72
+
 ## [0.1.1] - 2026-02-09
 
 ### Added

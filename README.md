@@ -9,7 +9,7 @@ A Home Assistant add-on that provides a custom integration for manually recordin
 - **Manual meter reading entry** — via GUI panel or Home Assistant services
 - **Multiple meters** — add as many gas and/or water meters as needed
 - **Meter replacement support** — when the meter number changes between readings, consumption resets automatically; projections are based only on the current meter
-- **Energy Dashboard compatible** — sensors use `state_class: total_increasing` with proper device classes
+- **Energy Dashboard compatible** — external statistics with correct reading timestamps (statistic ID: `gas_water_meter:<entry_id>`)
 - **Photo capture & upload** — attach photos in JPEG, PNG, HEIC/HEIF format (max 20 MB, 21 megapixels) with client-side validation; upload photos for existing readings from the history table
 - **Tesseract OCR** — extract meter readings and serial numbers from photos (pre-installed in add-on)
 - **HEIC/HEIF support** — Apple photo format supported via pillow-heif (pre-installed in add-on)
@@ -26,7 +26,7 @@ A Home Assistant add-on that provides a custom integration for manually recordin
 
 | Sensor | Description | Gas | Water |
 |--------|-------------|-----|-------|
-| Meter reading | Current meter reading (m³) — Energy Dashboard | x | x |
+| Meter reading | Current meter reading (m³) | x | x |
 | Meter number | Physical meter serial number | x | x |
 | Last entry date | When the last reading was recorded | x | x |
 | Last consumption | Delta between last two readings (m³) | x | x |
@@ -141,11 +141,13 @@ Returns the extracted meter reading, meter number, confidence score, and raw OCR
 
 ## Energy Dashboard
 
-The **Meter reading** sensor is compatible with the Home Assistant Energy Dashboard:
+The integration imports external statistics with correct reading timestamps for the Energy Dashboard:
 
 1. Go to **Settings** > **Dashboards** > **Energy**
-2. Add the gas meter sensor under **Gas consumption**
-3. Add the water meter sensor under **Water consumption**
+2. Under **Gas consumption**, add the external statistic `gas_water_meter:<your_entry_id>`
+3. Under **Water consumption**, add the external statistic `gas_water_meter:<your_entry_id>`
+
+> **Note:** Do not use the `sensor.*_meter_reading` entity — it would attribute all consumption to the moment you entered the reading, not the actual reading date. The external statistic uses the correct timestamps.
 
 ## Updating
 
@@ -182,7 +184,7 @@ When a new version is available:
 │           ├── store.py         # Legacy JSON storage (migration only)
 │           └── frontend/        # Bundled panel JS (Lit + Chart.js)
 ├── frontend-src/                # Frontend source (Lit, Chart.js, Rollup)
-├── tests/                       # Python unit tests (~120 tests)
+├── tests/                       # Python unit tests (~227 tests)
 ├── .github/workflows/           # CI (lint + test)
 ├── pyproject.toml               # Python project config
 └── requirements_test.txt        # Test dependencies
@@ -225,4 +227,4 @@ MIT License. See [FOSS.md](FOSS.md) for third-party licenses.
 
 ## Version
 
-0.1.1 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.1.2 — See [CHANGELOG.md](CHANGELOG.md) for details.
