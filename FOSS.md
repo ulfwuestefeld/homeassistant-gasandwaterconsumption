@@ -34,7 +34,7 @@ This document lists all third-party open source components used by the Gas & Wat
 | Pillow | HPND | Image preprocessing for OCR, EXIF extraction |
 | aiohttp | Apache-2.0 | REST API for image uploads (via HA core) |
 
-## Test Dependencies
+## Test Dependencies (Python)
 
 | Component | Version | License | URL |
 |-----------|---------|---------|-----|
@@ -44,6 +44,14 @@ This document lists all third-party open source components used by the Gas & Wat
 | pytest-cov | >= 6.0.0 | MIT | https://github.com/pytest-dev/pytest-cov |
 | pytest-timeout | >= 2.3.0 | MIT | https://github.com/pytest-dev/pytest-timeout |
 | ruff | >= 0.9.0 | MIT | https://github.com/astral-sh/ruff |
+
+## Test Dependencies (Frontend)
+
+| Component | Version | License | URL |
+|-----------|---------|---------|-----|
+| @web/test-runner | ^0.20.2 | MIT | https://github.com/modernweb-dev/web |
+| @open-wc/testing | ^4.0.0 | MIT | https://github.com/open-wc/open-wc |
+| @web/test-runner-commands | ^0.9.0 | MIT | https://github.com/modernweb-dev/web |
 
 ## License Compatibility
 

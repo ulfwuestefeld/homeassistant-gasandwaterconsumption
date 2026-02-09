@@ -70,7 +70,7 @@ async def ws_list_meters(
         meter: dict[str, Any] = {
             "entry_id": entry.entry_id,
             "meter_type": entry.data.get(CONF_METER_TYPE, ""),
-            "meter_name": entry.data.get(CONF_METER_NAME, ""),
+            "meter_name": entry.title or entry.data.get(CONF_METER_NAME, ""),
             "meter_number": entry.data.get(CONF_METER_NUMBER, ""),
             "currency": entry.data.get(CONF_CURRENCY, "EUR"),
         }

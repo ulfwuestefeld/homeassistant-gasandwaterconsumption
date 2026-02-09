@@ -1,12 +1,12 @@
 # Software Bill of Materials (SBOM)
 
-## Gas & Water Meter Add-on v0.1.0
+## Gas & Water Meter Add-on v0.1.1
 
 ### Metadata
 
 - **Name**: Gas & Water Meter
 - **Domain**: gas_water_meter
-- **Version**: 0.1.0
+- **Version**: 0.1.1
 - **Type**: Home Assistant Add-on + Custom Integration
 - **Python**: >= 3.12
 - **Home Assistant**: >= 2024.1.0
@@ -63,6 +63,14 @@
 | rollup | ^4.0.0 | MIT |
 | @rollup/plugin-node-resolve | ^16.0.0 | MIT |
 | @rollup/plugin-terser | ^0.4.0 | MIT |
+
+### Frontend Test Dependencies
+
+| Package | Version Constraint | License |
+|---------|--------------------|---------|
+| @web/test-runner | ^0.20.2 | MIT |
+| @open-wc/testing | ^4.0.0 | MIT |
+| @web/test-runner-commands | ^0.9.0 | MIT |
 
 ### Transitive Dependencies
 

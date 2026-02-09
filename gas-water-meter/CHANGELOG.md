@@ -5,6 +5,27 @@ All notable changes to the Gas & Water Meter add-on will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-02-09
+
+### Added
+
+- Hamburger menu button for mobile sidebar navigation (fires hass-toggle-menu event)
+- Card-based mobile history layout with labeled action buttons (min 44px touch targets)
+- Photo upload/replace for existing readings from history table/cards
+- Scrollable table wrappers for data tables on narrow screens
+- Frontend component tests (Web Test Runner + @open-wc/testing, 27 tests)
+
+### Fixed
+
+- Tab labels hidden on iPhone (CSS media query replaced display:none with vertical layout)
+- File input forced camera-only on iOS (removed capture="environment" attribute)
+- Icon property bindings in history/prices tables for consistent rendering
+
+### Changed
+
+- Backend ws_update_reading now accepts optional image_path parameter
+- Frontend test job added to CI pipeline
+
 ## [0.1.0] - 2026-02-08
 
 ### Added

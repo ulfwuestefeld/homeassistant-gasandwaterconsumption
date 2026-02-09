@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -102,6 +103,9 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         self._calorific_value: float = entry.data.get(CONF_CALORIFIC_VALUE, DEFAULT_CALORIFIC_VALUE)
         self._condition_factor: float = entry.data.get(CONF_CONDITION_FACTOR, DEFAULT_CONDITION_FACTOR)
 
+        # Change detection for statistics import
+        self._last_stats_fingerprint: tuple[tuple[Any, ...], ...] | None = None
+
     async def _async_update_data(self) -> MeterCoordinatorData:
         """Compute all sensor values from stored data."""
         data = await self._compute_data()
@@ -112,6 +116,11 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             data.consumption,
             data.current_price,
         )
+
+        # Sync reading statistics to HA long-term statistics so the Energy
+        # Dashboard shows consumption at the actual reading dates.
+        await self._sync_energy_statistics()
+
         return data
 
     def _m3_to_kwh(self, m3: float) -> float:
@@ -210,6 +219,114 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             data.monthly_projected_cost = self._compute_cost(data.monthly_projection, data.current_price)
         if data.yearly_projection is not None:
             data.yearly_projected_cost = self._compute_cost(data.yearly_projection, data.current_price)
+
+    # ------------------------------------------------------------------
+    # External statistics import for the Energy Dashboard
+    # ------------------------------------------------------------------
+
+    async def _sync_energy_statistics(self) -> None:
+        """Sync reading statistics to HA long-term statistics.
+
+        The Energy Dashboard normally records sensor state changes with
+        the *current* timestamp (i.e. when the value was written to HA).
+        For manually entered historical readings this is wrong -- the
+        consumption should appear at the *reading* date, not the entry
+        date.
+
+        This method imports all readings as **external statistics**
+        (source = DOMAIN) with the reading's actual timestamp.  The
+        Energy Dashboard can then be configured to use the external
+        statistic ``gas_water_meter:<entry_id>`` instead of the sensor
+        entity, giving correct historical charts.
+        """
+        readings = await self.db.async_get_readings(self._entry_id)
+
+        # Change detection: skip re-import when nothing changed.
+        fingerprint = tuple((r["id"], r["reading"], r["timestamp"], r["meter_number"]) for r in readings)
+        if fingerprint == self._last_stats_fingerprint:
+            return
+        self._last_stats_fingerprint = fingerprint
+
+        if not readings:
+            return
+
+        try:
+            self._do_import_statistics(readings)
+        except Exception:  # noqa: BLE001
+            _LOGGER.warning(
+                "Failed to import reading statistics for %s",
+                self._entry_id,
+                exc_info=True,
+            )
+
+    def _do_import_statistics(self, readings: list[dict[str, Any]]) -> None:
+        """Build and import external statistics from DB readings.
+
+        Each reading produces one ``StatisticData`` entry whose ``start``
+        is the reading timestamp rounded down to the full hour (required
+        by HA).  ``state`` is the raw meter reading; ``sum`` is the
+        cumulative consumption since the first reading, correctly handling
+        meter replacements (different meter numbers).
+
+        If two readings fall into the same hour, the later one wins.
+        """
+        from homeassistant.components.recorder.models import (
+            StatisticData,
+            StatisticMetaData,
+        )
+        from homeassistant.components.recorder.statistics import (
+            async_import_statistics,
+        )
+
+        sorted_readings = sorted(readings, key=lambda r: r["timestamp"])
+
+        running_sum = 0.0
+        hourly: dict[datetime, StatisticData] = {}
+
+        for i, reading in enumerate(sorted_readings):
+            # Accumulate consumption (only between same meter numbers).
+            if i > 0:
+                prev = sorted_readings[i - 1]
+                if reading["meter_number"] == prev["meter_number"]:
+                    delta = reading["reading"] - prev["reading"]
+                    if delta > 0:
+                        running_sum += delta
+
+            ts = datetime.fromisoformat(reading["timestamp"])
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+
+            # Statistics require the start of the hour.
+            start = ts.replace(minute=0, second=0, microsecond=0)
+
+            # Later readings within the same hour overwrite earlier ones.
+            hourly[start] = StatisticData(
+                start=start,
+                state=reading["reading"],
+                sum=round(running_sum, 3),
+            )
+
+        stats = [hourly[k] for k in sorted(hourly)]
+
+        name = self.config_entry.title or self._meter_name
+        metadata = StatisticMetaData(
+            has_mean=False,
+            has_sum=True,
+            name=name,
+            source=DOMAIN,
+            statistic_id=f"{DOMAIN}:{self._entry_id}",
+            unit_of_measurement=UnitOfVolume.CUBIC_METERS,
+        )
+
+        async_import_statistics(self.hass, metadata, stats)
+
+        _LOGGER.debug(
+            "Imported %d statistics for %s (statistic_id=%s:%s)",
+            len(stats),
+            name,
+            DOMAIN,
+            self._entry_id,
+        )
 
 
 def _days_between(ts1: str, ts2: str) -> float | None:

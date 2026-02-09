@@ -111,14 +111,21 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def _register_panel(hass: HomeAssistant) -> None:
-    """Register the sidebar panel for the frontend."""
+    """Register the sidebar panel and media paths for the frontend."""
+    media_path = hass.config.path("media", "gas_water_meter")
+    os.makedirs(media_path, exist_ok=True)
     await hass.http.async_register_static_paths(
         [
             StaticPathConfig(
                 "/gas_water_meter_panel",
                 hass.config.path("custom_components/gas_water_meter/frontend"),
                 cache_headers=False,
-            )
+            ),
+            StaticPathConfig(
+                "/gas_water_meter_media",
+                media_path,
+                cache_headers=True,
+            ),
         ]
     )
     await panel_custom.async_register_panel(

@@ -43,24 +43,24 @@ const MOCK_READINGS = [
     meter_number: "GAS-001",
     reading: 105.5,
     timestamp: "2025-02-01T10:00:00Z",
-    image_path: "/media/gas_water_meter/photo.jpg",
+    image_path: "/config/media/gas_water_meter/test_entry_1/20250201_100000.jpg",
   },
 ];
 
-function createMockHass(lang = "de", { readings = [] } = {}) {
+function createMockHass(lang = "de", { readings = [], meters = [MOCK_METER], statistics = [] } = {}) {
   return {
     language: lang,
     connection: {
       sendMessagePromise: async (msg) => {
         switch (msg.type) {
           case "gas_water_meter/list_meters":
-            return { meters: [MOCK_METER] };
+            return { meters };
           case "gas_water_meter/get_readings":
             return { readings, total: readings.length };
           case "gas_water_meter/get_prices":
             return { prices: [] };
           case "gas_water_meter/get_statistics":
-            return { statistics: [] };
+            return { statistics };
           default:
             return {};
         }
@@ -74,8 +74,8 @@ function createMockHass(lang = "de", { readings = [] } = {}) {
 // Helper – create the panel and wait until it is fully rendered with data.
 // ---------------------------------------------------------------------------
 
-async function createPanel({ narrow = false, lang = "de", readings = [] } = {}) {
-  const hass = createMockHass(lang, { readings });
+async function createPanel({ narrow = false, lang = "de", readings = [], meters, statistics } = {}) {
+  const hass = createMockHass(lang, { readings, ...(meters && { meters }), ...(statistics && { statistics }) });
 
   // connectedCallback fires before Lit commits property bindings,
   // so _loadMeters() called there will fail silently (hass is undefined).
@@ -321,6 +321,37 @@ describe("gas-water-meter-panel", () => {
 
       expect(meterTab.classList.contains("active")).to.be.true;
     });
+
+    it("displays renamed meter names from the WebSocket response", async () => {
+      const renamedMeter = {
+        ...MOCK_METER,
+        meter_name: "5222961 (Gas)",
+      };
+      const el = await createPanel({ meters: [renamedMeter] });
+      const meterTab = el.shadowRoot.querySelector(".meter-tab");
+
+      expect(meterTab).to.not.be.null;
+      expect(meterTab.textContent.trim()).to.include("5222961 (Gas)");
+    });
+
+    it("displays multiple renamed meter names correctly", async () => {
+      const meters = [
+        { ...MOCK_METER, entry_id: "e1", meter_name: "5222961 (Gas)" },
+        {
+          entry_id: "e2",
+          meter_name: "8EMTB123501226 (Water)",
+          meter_type: "water",
+          meter_number: "WAT-001",
+          currency: "EUR",
+        },
+      ];
+      const el = await createPanel({ meters });
+      const meterTabs = el.shadowRoot.querySelectorAll(".meter-tab");
+
+      expect(meterTabs.length).to.equal(2);
+      expect(meterTabs[0].textContent.trim()).to.include("5222961 (Gas)");
+      expect(meterTabs[1].textContent.trim()).to.include("8EMTB123501226 (Water)");
+    });
   });
 
   // ------------------------------------------------------------------
@@ -476,6 +507,447 @@ describe("gas-water-meter-panel", () => {
       expect(accept).to.include("image/*");
       expect(accept).to.include(".heic");
       expect(accept).to.include(".heif");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Image URL helper
+  // ------------------------------------------------------------------
+
+  describe("_imageUrl helper", () => {
+    it("converts an absolute image path to a media URL", async () => {
+      const el = await createPanel();
+      const url = el._imageUrl("/config/media/gas_water_meter/entry1/photo.jpg");
+      expect(url).to.equal("/gas_water_meter_media/entry1/photo.jpg");
+    });
+
+    it("handles Windows-style backslash paths", async () => {
+      const el = await createPanel();
+      const url = el._imageUrl("C:\\config\\media\\gas_water_meter\\entry1\\photo.jpg");
+      expect(url).to.equal("/gas_water_meter_media/entry1/photo.jpg");
+    });
+
+    it("returns null for null or undefined input", async () => {
+      const el = await createPanel();
+      expect(el._imageUrl(null)).to.be.null;
+      expect(el._imageUrl(undefined)).to.be.null;
+    });
+
+    it("returns null for a path without the gas_water_meter marker", async () => {
+      const el = await createPanel();
+      expect(el._imageUrl("/some/other/path/photo.jpg")).to.be.null;
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Photo thumbnails in history
+  // ------------------------------------------------------------------
+
+  describe("photo thumbnails", () => {
+    it("desktop table shows a thumbnail for readings with an image", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const thumbs = el.shadowRoot.querySelectorAll(".photo-thumb");
+      // Only reading 2 has image_path, so exactly one thumbnail
+      expect(thumbs.length).to.equal(1);
+      expect(thumbs[0].getAttribute("src")).to.equal(
+        "/gas_water_meter_media/test_entry_1/20250201_100000.jpg"
+      );
+    });
+
+    it("desktop table does not show a thumbnail for readings without an image", async () => {
+      const readingsNoImage = [
+        { ...MOCK_READINGS[0] },
+        { ...MOCK_READINGS[1], image_path: null },
+      ];
+      const el = await createPanel({ narrow: false, readings: readingsNoImage });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const thumbs = el.shadowRoot.querySelectorAll(".photo-thumb");
+      expect(thumbs.length).to.equal(0);
+    });
+
+    it("mobile cards show a thumbnail for readings with an image", async () => {
+      const el = await createPanel({ narrow: true, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const thumbs = el.shadowRoot.querySelectorAll(".photo-thumb");
+      expect(thumbs.length).to.equal(1);
+      expect(thumbs[0].getAttribute("src")).to.equal(
+        "/gas_water_meter_media/test_entry_1/20250201_100000.jpg"
+      );
+    });
+
+    it("thumbnail has cursor pointer for clickability", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const thumb = el.shadowRoot.querySelector(".photo-thumb");
+      expect(thumb).to.not.be.null;
+      const style = window.getComputedStyle(thumb);
+      expect(style.cursor).to.equal("pointer");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Photo lightbox
+  // ------------------------------------------------------------------
+
+  describe("photo lightbox", () => {
+    it("is not shown by default", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const overlay = el.shadowRoot.querySelector(".lightbox-overlay");
+      expect(overlay).to.be.null;
+    });
+
+    it("opens when clicking a photo thumbnail", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const thumb = el.shadowRoot.querySelector(".photo-thumb");
+      expect(thumb).to.not.be.null;
+      thumb.click();
+      await el.updateComplete;
+
+      const overlay = el.shadowRoot.querySelector(".lightbox-overlay");
+      expect(overlay).to.not.be.null;
+
+      const img = overlay.querySelector(".lightbox-img");
+      expect(img).to.not.be.null;
+      expect(img.getAttribute("src")).to.equal(
+        "/gas_water_meter_media/test_entry_1/20250201_100000.jpg"
+      );
+    });
+
+    it("closes when clicking the overlay background", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      // Open lightbox
+      el.shadowRoot.querySelector(".photo-thumb").click();
+      await el.updateComplete;
+      expect(el.shadowRoot.querySelector(".lightbox-overlay")).to.not.be.null;
+
+      // Click overlay to close
+      el.shadowRoot.querySelector(".lightbox-overlay").click();
+      await el.updateComplete;
+      expect(el.shadowRoot.querySelector(".lightbox-overlay")).to.be.null;
+    });
+
+    it("closes when clicking the close button", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      // Open lightbox
+      el.shadowRoot.querySelector(".photo-thumb").click();
+      await el.updateComplete;
+      expect(el.shadowRoot.querySelector(".lightbox-overlay")).to.not.be.null;
+
+      // Click close button
+      el.shadowRoot.querySelector(".lightbox-close").click();
+      await el.updateComplete;
+      expect(el.shadowRoot.querySelector(".lightbox-overlay")).to.be.null;
+    });
+
+    it("does not close when clicking the lightbox image", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      // Open lightbox
+      el.shadowRoot.querySelector(".photo-thumb").click();
+      await el.updateComplete;
+
+      // Click the image itself - should NOT close
+      el.shadowRoot.querySelector(".lightbox-img").click();
+      await el.updateComplete;
+      expect(el.shadowRoot.querySelector(".lightbox-overlay")).to.not.be.null;
+    });
+
+    it("works from mobile card thumbnails too", async () => {
+      const el = await createPanel({ narrow: true, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const thumb = el.shadowRoot.querySelector(".photo-thumb");
+      expect(thumb).to.not.be.null;
+      thumb.click();
+      await el.updateComplete;
+
+      const overlay = el.shadowRoot.querySelector(".lightbox-overlay");
+      expect(overlay).to.not.be.null;
+
+      const img = overlay.querySelector(".lightbox-img");
+      expect(img).to.not.be.null;
+    });
+
+    it("has a close button with an icon", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      el.shadowRoot.querySelector(".photo-thumb").click();
+      await el.updateComplete;
+
+      const closeBtn = el.shadowRoot.querySelector(".lightbox-close");
+      expect(closeBtn).to.not.be.null;
+      const icon = closeBtn.querySelector("ha-icon");
+      expect(icon).to.not.be.null;
+      expect(icon.icon).to.equal("mdi:close");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Reading form elements
+  // ------------------------------------------------------------------
+
+  describe("reading form", () => {
+    it("renders the reading input field", async () => {
+      const el = await createPanel();
+      const input = el.shadowRoot.querySelector("#reading-value");
+      expect(input).to.not.be.null;
+      expect(input.getAttribute("type")).to.equal("number");
+    });
+
+    it("renders the meter number input field", async () => {
+      const el = await createPanel();
+      const input = el.shadowRoot.querySelector("#reading-meter-nr");
+      expect(input).to.not.be.null;
+    });
+
+    it("renders the datetime input field", async () => {
+      const el = await createPanel();
+      const input = el.shadowRoot.querySelector("#reading-timestamp");
+      expect(input).to.not.be.null;
+      expect(input.getAttribute("type")).to.equal("datetime-local");
+    });
+
+    it("pre-fills meter number from selected meter", async () => {
+      const el = await createPanel();
+      const input = el.shadowRoot.querySelector("#reading-meter-nr");
+      expect(input.value).to.equal("GAS-001");
+    });
+
+    it("renders a save button", async () => {
+      const el = await createPanel();
+      const saveBtn = el.shadowRoot.querySelector("button.primary");
+      expect(saveBtn).to.not.be.null;
+      expect(saveBtn.textContent.trim()).to.include("Speichern");
+    });
+
+    it("renders the photo upload button", async () => {
+      const el = await createPanel();
+      const photoInput = el.shadowRoot.querySelector("#photo-input");
+      expect(photoInput).to.not.be.null;
+    });
+
+    it("reading form card has a title", async () => {
+      const el = await createPanel();
+      const title = el.shadowRoot.querySelector(".card h2");
+      expect(title).to.not.be.null;
+      expect(title.textContent.trim().length).to.be.greaterThan(0);
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Prices tab
+  // ------------------------------------------------------------------
+
+  describe("prices tab", () => {
+    it("renders price form elements", async () => {
+      const el = await createPanel();
+
+      // Switch to prices tab (index 2)
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[2].click();
+      await el.updateComplete;
+
+      const priceInput = el.shadowRoot.querySelector("#price-value");
+      expect(priceInput).to.not.be.null;
+      expect(priceInput.getAttribute("type")).to.equal("number");
+
+      const validFromInput = el.shadowRoot.querySelector("#price-from");
+      expect(validFromInput).to.not.be.null;
+    });
+
+    it("shows 'no prices' message when no prices exist", async () => {
+      const el = await createPanel();
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[2].click();
+      await el.updateComplete;
+
+      const text = el.shadowRoot.textContent;
+      // German: "Noch keine Preise erfasst."
+      expect(text).to.include("keine Preise");
+    });
+
+    it("renders price save button", async () => {
+      const el = await createPanel();
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[2].click();
+      await el.updateComplete;
+
+      const saveBtn = el.shadowRoot.querySelector("button.primary");
+      expect(saveBtn).to.not.be.null;
+    });
+
+    it("shows gas conversion factors for gas meters", async () => {
+      const el = await createPanel();
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[2].click();
+      await el.updateComplete;
+
+      // Gas meters should show the conversion factor form
+      const gasParamsSection = el.shadowRoot.querySelector("#calorific-value");
+      expect(gasParamsSection).to.not.be.null;
+    });
+
+    it("hides gas conversion factors for water meters", async () => {
+      const waterMeter = {
+        ...MOCK_METER,
+        meter_type: "water",
+        meter_name: "Wasserzähler",
+      };
+      const el = await createPanel({ meters: [waterMeter] });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[2].click();
+      await el.updateComplete;
+
+      const gasParams = el.shadowRoot.querySelector("#calorific-value");
+      expect(gasParams).to.be.null;
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Chart tab
+  // ------------------------------------------------------------------
+
+  describe("chart tab", () => {
+    it("shows minimum readings message when there are no readings", async () => {
+      const el = await createPanel();
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[3].click();
+      await el.updateComplete;
+
+      const text = el.shadowRoot.textContent;
+      // "Mindestens 2 Ablesungen" or English equivalent
+      expect(
+        text.includes("Mindestens 2") || text.includes("At least 2")
+      ).to.be.true;
+    });
+
+    it("renders a canvas element when there are enough statistics", async () => {
+      const mockStats = [
+        { timestamp: "2025-01-01T10:00:00Z", reading: 100.0, consumption: null, days: 0, meter_number: "GAS-001" },
+        { timestamp: "2025-02-01T10:00:00Z", reading: 105.5, consumption: 5.5, days: 31, meter_number: "GAS-001" },
+        { timestamp: "2025-03-01T10:00:00Z", reading: 112.0, consumption: 6.5, days: 28, meter_number: "GAS-001" },
+      ];
+      const el = await createPanel({ readings: MOCK_READINGS, statistics: mockStats });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[3].click();
+      await el.updateComplete;
+
+      // Give Chart.js time to render
+      await new Promise((r) => setTimeout(r, 100));
+      await el.updateComplete;
+
+      const canvas = el.shadowRoot.querySelector("canvas");
+      expect(canvas).to.not.be.null;
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Empty history state
+  // ------------------------------------------------------------------
+
+  describe("empty history state", () => {
+    it("shows 'no readings' message when history is empty", async () => {
+      const el = await createPanel();
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const text = el.shadowRoot.textContent;
+      // "Noch keine Ablesungen vorhanden."
+      expect(text).to.include("keine Ablesungen");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Desktop action buttons icon visibility
+  // ------------------------------------------------------------------
+
+  describe("desktop action icon visibility", () => {
+    it("icon buttons have ha-icon elements with explicit icon property", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      const iconBtns = el.shadowRoot.querySelectorAll(".icon-btn");
+      // 2 rows * 3 buttons each = 6
+      expect(iconBtns.length).to.equal(6);
+
+      for (const btn of iconBtns) {
+        const icon = btn.querySelector("ha-icon");
+        expect(icon).to.not.be.null;
+        expect(icon.icon).to.be.a("string").that.is.not.empty;
+      }
+    });
+
+    it("ha-icon has default display style for visibility", async () => {
+      const el = await createPanel({ narrow: false, readings: MOCK_READINGS });
+
+      const tabs = el.shadowRoot.querySelectorAll(".tab");
+      tabs[1].click();
+      await el.updateComplete;
+
+      // Check that the ha-icon inside an icon-btn is visible (not display:none)
+      const firstIcon = el.shadowRoot.querySelector(".icon-btn ha-icon");
+      expect(firstIcon).to.not.be.null;
+      const style = window.getComputedStyle(firstIcon);
+      expect(style.display).to.not.equal("none");
     });
   });
 });

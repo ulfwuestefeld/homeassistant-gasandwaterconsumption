@@ -6,6 +6,7 @@ import os
 import tempfile
 from unittest.mock import patch
 
+from custom_components.gas_water_meter import async_setup
 from custom_components.gas_water_meter.const import DOMAIN
 from custom_components.gas_water_meter.db import MeterDatabase
 from homeassistant import config_entries
@@ -168,3 +169,90 @@ async def test_unload_keeps_services_with_remaining_entries(hass: HomeAssistant)
     assert hass.services.has_service(DOMAIN, "record_reading")
     assert hass.services.has_service(DOMAIN, "set_price")
     assert hass.services.has_service(DOMAIN, "read_meter_image")
+
+
+# ===================================================================
+# async_setup (domain-level initialization)
+# ===================================================================
+
+
+async def test_async_setup_initializes_db(hass: HomeAssistant, mock_setup_deps) -> None:
+    """Test that async_setup creates a MeterDatabase in hass.data."""
+    result = await async_setup(hass, {})
+
+    assert result is True
+    assert DOMAIN in hass.data
+    assert "db" in hass.data[DOMAIN]
+    assert isinstance(hass.data[DOMAIN]["db"], MeterDatabase)
+
+
+async def test_async_setup_registers_websocket(hass: HomeAssistant, mock_setup_deps) -> None:
+    """Test that async_setup marks WebSocket commands as registered."""
+    await async_setup(hass, {})
+
+    assert hass.data[DOMAIN].get("ws_registered") is True
+
+
+async def test_async_setup_idempotent(hass: HomeAssistant, mock_setup_deps) -> None:
+    """Test that calling async_setup twice does not create a second DB."""
+    await async_setup(hass, {})
+    first_db = hass.data[DOMAIN]["db"]
+
+    await async_setup(hass, {})
+    second_db = hass.data[DOMAIN]["db"]
+
+    assert first_db is second_db
+
+
+async def test_async_setup_registers_http(hass: HomeAssistant, mock_setup_deps) -> None:
+    """Test that async_setup registers the HTTP upload view."""
+    from unittest.mock import AsyncMock, MagicMock  # noqa: PLC0415
+
+    # hass.http is None in test env; provide a mock with register_view
+    mock_http = MagicMock()
+    mock_http.register_view = MagicMock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http
+
+    await async_setup(hass, {})
+
+    assert hass.data[DOMAIN].get("http_registered") is True
+    mock_http.register_view.assert_called_once()
+
+
+async def test_async_setup_handles_panel_failure(hass: HomeAssistant) -> None:
+    """Test that async_setup succeeds even if panel registration fails."""
+    with (
+        patch(
+            "custom_components.gas_water_meter.__init__.panel_custom.async_register_panel",
+            side_effect=Exception("Panel error"),
+        ),
+        patch(
+            "homeassistant.components.http.HomeAssistantHTTP.async_register_static_paths",
+            side_effect=Exception("Static paths error"),
+        ),
+    ):
+        result = await async_setup(hass, {})
+
+    assert result is True
+    assert DOMAIN in hass.data
+    # DB should still be initialized
+    assert "db" in hass.data[DOMAIN]
+
+
+async def test_setup_entry_initializes_domain_if_needed(hass: HomeAssistant, mock_setup_deps) -> None:
+    """Test that async_setup_entry calls async_setup if domain not initialized."""
+    # Don't pre-initialize domain data - let async_setup_entry handle it
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert result is True
+    assert DOMAIN in hass.data
+    assert "db" in hass.data[DOMAIN]

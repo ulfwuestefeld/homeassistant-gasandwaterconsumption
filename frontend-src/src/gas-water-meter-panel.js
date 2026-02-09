@@ -164,6 +164,7 @@ class GasWaterMeterPanel extends LitElement {
     _uploadResult: { state: true },
     _editReading: { state: true },
     _editPrice: { state: true },
+    _viewingPhoto: { state: true },
   };
 
   constructor() {
@@ -178,6 +179,7 @@ class GasWaterMeterPanel extends LitElement {
     this._uploadResult = null;
     this._editReading = null;
     this._editPrice = null;
+    this._viewingPhoto = null;
   }
 
   /** Return the user's HA language (e.g. "de", "en"). */
@@ -325,6 +327,7 @@ class GasWaterMeterPanel extends LitElement {
               <div class="content">${this._renderTabContent()}</div>
             `}
       </div>
+      ${this._renderPhotoLightbox()}
     `;
   }
 
@@ -558,13 +561,19 @@ class GasWaterMeterPanel extends LitElement {
             ${reversed.map((r, i, arr) => {
               const prev = i < arr.length - 1 ? arr[i + 1] : null;
               const consumption = prev ? (r.reading - prev.reading).toFixed(3) : "-";
+              const imgUrl = this._imageUrl(r.image_path);
               return html`
                 <tr>
                   <td>${this._fmtDate(r.timestamp)}</td>
                   <td>${r.reading.toFixed(3)}</td>
                   <td>${consumption}</td>
                   <td>${r.meter_number}</td>
-                  <td>${r.image_path ? html`<ha-icon .icon=${"mdi:camera"}></ha-icon>` : ""}</td>
+                  <td class="photo-cell">
+                    ${imgUrl
+                      ? html`<img class="photo-thumb" src=${imgUrl} alt=${this._t("view_photo")}
+                               @click=${() => this._openPhotoLightbox(imgUrl)} />`
+                      : ""}
+                  </td>
                   <td class="actions">
                     <button class="icon-btn" title=${this._t(r.image_path ? "replace_photo" : "upload_photo")} @click=${() => this._startHistoryPhotoUpload(r.id)}>
                       <ha-icon .icon=${"mdi:camera-plus"}></ha-icon>
@@ -592,11 +601,15 @@ class GasWaterMeterPanel extends LitElement {
         ${reversed.map((r, i, arr) => {
           const prev = i < arr.length - 1 ? arr[i + 1] : null;
           const consumption = prev ? (r.reading - prev.reading).toFixed(3) : "-";
+          const cardImgUrl = this._imageUrl(r.image_path);
           return html`
             <div class="reading-card">
               <div class="reading-card-header">
                 <span class="reading-card-date">${this._fmtDate(r.timestamp)}</span>
-                ${r.image_path ? html`<ha-icon .icon=${"mdi:camera"}></ha-icon>` : ""}
+                ${cardImgUrl
+                  ? html`<img class="photo-thumb" src=${cardImgUrl} alt=${this._t("view_photo")}
+                           @click=${() => this._openPhotoLightbox(cardImgUrl)} />`
+                  : ""}
               </div>
               <div class="reading-card-body">
                 <div class="reading-card-row">
@@ -1061,6 +1074,50 @@ class GasWaterMeterPanel extends LitElement {
     });
   }
 
+  // ---- Photo lightbox ----
+
+  /**
+   * Convert an absolute image_path (from the DB) to a URL served by the
+   * registered static path /gas_water_meter_media/.
+   */
+  _imageUrl(imagePath) {
+    if (!imagePath) return null;
+    const marker = "gas_water_meter";
+    const idx = imagePath.lastIndexOf(marker);
+    if (idx < 0) return null;
+    let rest = imagePath.substring(idx + marker.length);
+    // Remove leading separator (/ or \)
+    if (rest.startsWith("/") || rest.startsWith("\\")) rest = rest.substring(1);
+    // Normalize backslashes for URL
+    rest = rest.replace(/\\/g, "/");
+    return `/gas_water_meter_media/${rest}`;
+  }
+
+  _openPhotoLightbox(url) {
+    this._viewingPhoto = url;
+  }
+
+  _closePhotoLightbox() {
+    this._viewingPhoto = null;
+  }
+
+  _renderPhotoLightbox() {
+    if (!this._viewingPhoto) return html``;
+    return html`
+      <div class="lightbox-overlay" @click=${this._closePhotoLightbox}>
+        <button class="lightbox-close" @click=${this._closePhotoLightbox}>
+          <ha-icon .icon=${"mdi:close"}></ha-icon>
+        </button>
+        <img
+          class="lightbox-img"
+          src=${this._viewingPhoto}
+          alt="Meter photo"
+          @click=${(e) => e.stopPropagation()}
+        />
+      </div>
+    `;
+  }
+
   // ---- Helpers ----
 
   _selectMeter(m) {
@@ -1264,6 +1321,13 @@ class GasWaterMeterPanel extends LitElement {
     .actions {
       white-space: nowrap;
     }
+    /* Ensure ha-icon renders at a visible size in all contexts */
+    ha-icon {
+      --mdc-icon-size: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
     .icon-btn {
       background: none;
       border: none;
@@ -1276,6 +1340,9 @@ class GasWaterMeterPanel extends LitElement {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+    }
+    .icon-btn ha-icon {
+      --mdc-icon-size: 20px;
     }
     .icon-btn:hover {
       background: rgba(0, 0, 0, 0.05);
@@ -1427,6 +1494,63 @@ class GasWaterMeterPanel extends LitElement {
     .preview {
       max-width: 200px;
       border-radius: 6px;
+    }
+    /* ---- Photo thumbnails ---- */
+    .photo-cell {
+      text-align: center;
+    }
+    .photo-thumb {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      vertical-align: middle;
+    }
+    .photo-thumb:hover {
+      transform: scale(1.1);
+    }
+    /* ---- Photo lightbox ---- */
+    .lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      cursor: pointer;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      cursor: pointer;
+      z-index: 1001;
+    }
+    .lightbox-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .lightbox-close ha-icon {
+      --mdc-icon-size: 24px;
+      color: #fff;
+    }
+    .lightbox-img {
+      max-width: 90vw;
+      max-height: 90vh;
+      object-fit: contain;
+      border-radius: 4px;
+      cursor: default;
     }
     @media (max-width: 600px) {
       :host {

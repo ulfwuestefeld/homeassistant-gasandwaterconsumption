@@ -17,7 +17,7 @@ You use mocks for mocking external systems.
 - **Domain**: `gas_water_meter`
 - **Type**: Home Assistant Add-on containing a custom integration (service, calculated)
 - **Distribution**: Private GitHub repository, installed via SSH deploy key as add-on repository
-- **Version**: 0.1.0
+- **Version**: 0.1.1
 - **Python**: >= 3.12
 - **Pattern**: Async-first, config-entry-based, coordinator pattern (no polling)
 - **HA Skill**: Use the `homeassistant-development` Cursor skill for HA patterns
@@ -57,9 +57,12 @@ You use mocks for mocking external systems.
 ├── frontend-src/                    # Frontend source (Lit, Chart.js, Rollup)
 │   ├── package.json                 # Frontend dependencies
 │   ├── rollup.config.mjs           # Rollup build config
-│   └── src/
-│       └── gas-water-meter-panel.js # LitElement sidebar panel
-├── tests/                           # Unit tests (pytest, 140 tests)
+│   ├── web-test-runner.config.mjs  # Frontend test runner config
+│   ├── src/
+│   │   └── gas-water-meter-panel.js # LitElement sidebar panel
+│   └── test/
+│       └── gas-water-meter-panel.test.js # Frontend component tests
+├── tests/                           # Python unit tests (pytest, ~120 tests)
 ├── .github/workflows/tests.yml      # CI: lint + test
 ├── pyproject.toml                   # Python project config (pythonpath: gas-water-meter)
 └── requirements_test.txt            # Test dependencies
@@ -77,7 +80,7 @@ You use mocks for mocking external systems.
 - OCR: Tesseract via pytesseract (optional, graceful degradation)
 - EXIF: Automatic timestamp extraction from photos
 - Storage: SQLite via aiosqlite (db.py); legacy JSON store (store.py) kept for migration only
-- Frontend: Sidebar panel built with Lit, bundled via Rollup into frontend/entrypoint.js; full i18n via TRANSLATIONS dict + hass.language (en, de); mobile responsive (card layout on narrow screens)
+- Frontend: Sidebar panel built with Lit, bundled via Rollup into frontend/entrypoint.js; full i18n via TRANSLATIONS dict + hass.language (en, de); mobile responsive (card layout on narrow screens); tested with Web Test Runner + @open-wc/testing (~27 browser-based component tests)
 - Chart: Chart.js for monthly consumption visualization (proportional aggregation by calendar month)
 - WebSocket API: Custom commands in websocket.py for frontend-backend CRUD (readings, prices, meters, statistics, gas_params)
 - REST API: http.py provides /api/gas_water_meter/upload_image for multipart photo uploads (max 20 MB, 21 MP)

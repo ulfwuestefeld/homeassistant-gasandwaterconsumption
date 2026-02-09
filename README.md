@@ -182,7 +182,7 @@ When a new version is available:
 │           ├── store.py         # Legacy JSON storage (migration only)
 │           └── frontend/        # Bundled panel JS (Lit + Chart.js)
 ├── frontend-src/                # Frontend source (Lit, Chart.js, Rollup)
-├── tests/                       # Unit tests (140 tests)
+├── tests/                       # Python unit tests (~120 tests)
 ├── .github/workflows/           # CI (lint + test)
 ├── pyproject.toml               # Python project config
 └── requirements_test.txt        # Test dependencies
@@ -190,11 +190,19 @@ When a new version is available:
 
 ## Development
 
-### Running Tests
+### Running Python Tests
 
 ```bash
 pip install -r requirements_test.txt
 pytest tests/ -v
+```
+
+### Running Frontend Tests
+
+```bash
+cd frontend-src
+npm ci
+npm test
 ```
 
 ### Linting
@@ -204,10 +212,17 @@ ruff check gas-water-meter/custom_components/ tests/
 ruff format --check gas-water-meter/custom_components/ tests/
 ```
 
+### Building the Frontend
+
+```bash
+cd frontend-src
+npm run build
+```
+
 ## License
 
 MIT License. See [FOSS.md](FOSS.md) for third-party licenses.
 
 ## Version
 
-0.1.0 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.1.1 — See [CHANGELOG.md](CHANGELOG.md) for details.

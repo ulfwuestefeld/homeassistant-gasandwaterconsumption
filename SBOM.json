@@ -6,7 +6,7 @@
         "component": {
             "type": "application",
             "name": "gas_water_meter",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "description": "Home Assistant add-on and custom integration for manual gas and water meter reading entry with OCR, projection, and cost tracking",
             "licenses": [
                 {
@@ -215,6 +215,48 @@
                 }
             ],
             "purl": "pkg:pypi/ruff",
+            "scope": "excluded"
+        },
+        {
+            "type": "library",
+            "name": "@web/test-runner",
+            "version": "^0.20.2",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:npm/%40web/test-runner",
+            "scope": "excluded"
+        },
+        {
+            "type": "library",
+            "name": "@open-wc/testing",
+            "version": "^4.0.0",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:npm/%40open-wc/testing",
+            "scope": "excluded"
+        },
+        {
+            "type": "library",
+            "name": "@web/test-runner-commands",
+            "version": "^0.9.0",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:npm/%40web/test-runner-commands",
             "scope": "excluded"
         }
     ]

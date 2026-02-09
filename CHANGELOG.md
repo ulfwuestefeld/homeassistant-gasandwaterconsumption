@@ -5,6 +5,28 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-02-09
+
+### Added
+
+- **Frontend test infrastructure** — browser-based component tests using Web Test Runner + @open-wc/testing (27 tests covering responsive layout, sidebar toggle, file upload, i18n, navigation)
+- **Hamburger menu button** — mobile sidebar navigation via `hass-toggle-menu` event (shown when `narrow=true`)
+- **Card-based mobile history** — on narrow screens, the history table is replaced by a card layout with clearly labeled action buttons (min 44px touch targets)
+- **Photo upload for existing readings** — upload or replace photos for any reading directly from the history table/cards
+- **Scrollable data tables** — horizontal scroll wrappers (`overflow-x: auto`) for tables on small screens
+- **New translations** — `upload_photo`, `replace_photo`, `view_photo` in English and German
+
+### Fixed
+
+- **Tab labels hidden on iPhone** — CSS media query at `<600px` was setting `display: none` on tab label text; replaced with vertical icon+label layout
+- **File input forced camera-only on iOS** — removed `capture="environment"` attribute so iOS Safari offers camera, photo library, and files selection
+- **Icon rendering in tables** — changed `ha-icon` from attribute bindings (`icon="..."`) to property bindings (`.icon=${...}`) for consistent rendering
+
+### Changed
+
+- Backend `ws_update_reading` WebSocket command now accepts optional `image_path` parameter
+- Frontend test job added to GitHub Actions CI pipeline (Node.js 20, headless Chrome)
+
 ## [0.1.0] - 2026-02-08
 
 ### Added

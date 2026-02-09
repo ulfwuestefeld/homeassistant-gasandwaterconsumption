@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 from custom_components.gas_water_meter.const import DAYS_PER_MONTH, DAYS_PER_YEAR
 from custom_components.gas_water_meter.coordinator import (
@@ -859,3 +860,289 @@ async def test_meter_change_cost_not_computed(hass: HomeAssistant, mock_db_empty
     # No projected costs either (only 1 reading on new meter)
     assert data.monthly_projected_cost is None
     assert data.yearly_projected_cost is None
+
+
+# ---------------------------------------------------------------------------
+# Energy Dashboard statistics import tests
+# ---------------------------------------------------------------------------
+
+
+async def test_statistics_imported_with_reading_timestamps(hass: HomeAssistant, mock_db: MeterDatabase) -> None:
+    """Statistics use the actual reading date, not the date of entry."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+        title="Gas Meter - Kitchen",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, mock_db)
+        await coordinator.async_refresh()
+
+        assert mock_import.called
+        call_args = mock_import.call_args
+        _hass_arg, metadata, stats_iter = call_args[0]
+        stats = list(stats_iter) if not isinstance(stats_iter, list) else stats_iter
+
+        # Metadata
+        assert metadata["source"] == "gas_water_meter"
+        assert metadata["statistic_id"] == "gas_water_meter:test_entry"
+        assert metadata["has_sum"] is True
+        assert metadata["has_mean"] is False
+        assert metadata["name"] == "Gas Meter - Kitchen"
+
+        # 3 readings → 3 statistics entries
+        assert len(stats) == 3
+
+        # Verify timestamps match reading dates (start of hour)
+        expected_starts = [
+            datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+            datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
+            datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc),
+        ]
+        for stat, expected in zip(stats, expected_starts):
+            assert stat["start"] == expected
+
+        # state = raw meter reading
+        assert stats[0]["state"] == 100.0
+        assert stats[1]["state"] == 110.5
+        assert stats[2]["state"] == 125.3
+
+        # sum = cumulative consumption since first reading
+        assert stats[0]["sum"] == 0.0  # first: no prior consumption
+        assert stats[1]["sum"] == 10.5  # 110.5 - 100.0
+        assert stats[2]["sum"] == 25.3  # 10.5 + (125.3 - 110.5)
+
+
+async def test_statistics_handles_meter_number_change(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Meter replacement resets delta but running sum continues."""
+    db = mock_db_empty
+    # Old meter readings
+    await db.async_add_reading("e1", "GAS-OLD", 100.0, "2025-01-01T10:00:00+00:00")
+    await db.async_add_reading("e1", "GAS-OLD", 150.0, "2025-06-01T10:00:00+00:00")
+    # New meter starts at 0
+    await db.async_add_reading("e1", "GAS-NEW", 0.0, "2025-07-01T10:00:00+00:00")
+    await db.async_add_reading("e1", "GAS-NEW", 30.0, "2025-12-01T10:00:00+00:00")
+
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data={**MOCK_GAS_CONFIG, "meter_number": "GAS-NEW"},
+        unique_id="gas_water_meter_gas_GAS-NEW",
+        entry_id="e1",
+        title="Gas Meter",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, db)
+        await coordinator.async_refresh()
+
+        call_args = mock_import.call_args
+        stats = list(call_args[0][2])
+
+        assert len(stats) == 4
+
+        # Old meter: 100 → 150 = 50 m³ consumption
+        assert stats[0]["sum"] == 0.0  # first reading
+        assert stats[1]["sum"] == 50.0  # 150 - 100
+
+        # Meter change: no consumption counted (different meter_number)
+        assert stats[2]["sum"] == 50.0  # unchanged (meter changed)
+
+        # New meter: 0 → 30 = 30 m³ consumption, total = 50 + 30
+        assert stats[3]["sum"] == 80.0  # 50 + 30
+
+
+async def test_statistics_change_detection_skips_reimport(hass: HomeAssistant, mock_db: MeterDatabase) -> None:
+    """Second refresh with unchanged data does not re-import statistics."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+        title="Gas Meter",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, mock_db)
+
+        # First refresh → import happens
+        await coordinator.async_refresh()
+        assert mock_import.call_count == 1
+
+        # Second refresh, same data → no re-import
+        await coordinator.async_refresh()
+        assert mock_import.call_count == 1
+
+
+async def test_statistics_reimported_after_new_reading(hass: HomeAssistant, mock_db: MeterDatabase) -> None:
+    """Adding a new reading triggers a re-import of statistics."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+        title="Gas Meter",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, mock_db)
+        await coordinator.async_refresh()
+        assert mock_import.call_count == 1
+
+        # Add a new reading
+        await mock_db.async_add_reading("test_entry", "GAS-12345", 140.0, "2026-03-01T10:00:00+00:00")
+
+        # Refresh again → re-import with 4 readings
+        await coordinator.async_refresh()
+        assert mock_import.call_count == 2
+
+        stats = list(mock_import.call_args[0][2])
+        assert len(stats) == 4
+        # New sum: 10.5 + 14.8 + 14.7 = 40.0
+        assert stats[3]["sum"] == 40.0
+
+
+async def test_statistics_empty_readings_no_import(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """No statistics import when there are no readings."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+        title="Gas Meter",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, mock_db_empty)
+        await coordinator.async_refresh()
+
+        assert not mock_import.called
+
+
+async def test_statistics_hourly_deduplication(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Two readings in the same hour produce only one statistics entry."""
+    db = mock_db_empty
+    # Two readings within the same hour (10:00 - 10:59)
+    await db.async_add_reading("e1", "GAS-12345", 100.0, "2026-01-01T10:15:00+00:00")
+    await db.async_add_reading("e1", "GAS-12345", 105.0, "2026-01-01T10:45:00+00:00")
+    # One reading in the next hour
+    await db.async_add_reading("e1", "GAS-12345", 110.0, "2026-01-01T11:30:00+00:00")
+
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="e1",
+        title="Gas Meter",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, db)
+        await coordinator.async_refresh()
+
+        stats = list(mock_import.call_args[0][2])
+
+        # Two hours → 2 entries (first hour deduplicated)
+        assert len(stats) == 2
+
+        # Hour 10: later reading (105.0) wins
+        assert stats[0]["start"] == datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
+        assert stats[0]["state"] == 105.0
+        assert stats[0]["sum"] == 5.0  # 100 → 105
+
+        # Hour 11
+        assert stats[1]["start"] == datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc)
+        assert stats[1]["state"] == 110.0
+        assert stats[1]["sum"] == 10.0  # 5 + (110 - 105)
+
+
+async def test_statistics_water_meter(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Water meter statistics use m³ unit and correct source."""
+    db = mock_db_empty
+    await db.async_add_reading("w1", "WAT-67890", 50.0, "2026-01-01T08:00:00+00:00")
+    await db.async_add_reading("w1", "WAT-67890", 60.0, "2026-02-01T08:00:00+00:00")
+
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_WATER_CONFIG,
+        unique_id="gas_water_meter_water_WAT-67890",
+        entry_id="w1",
+        title="Water Meter - Garden",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, db)
+        await coordinator.async_refresh()
+
+        call_args = mock_import.call_args
+        metadata = call_args[0][1]
+        stats = list(call_args[0][2])
+
+        assert metadata["source"] == "gas_water_meter"
+        assert metadata["statistic_id"] == "gas_water_meter:w1"
+        assert metadata["name"] == "Water Meter - Garden"
+        assert metadata["unit_of_measurement"] == "m³"
+
+        assert len(stats) == 2
+        assert stats[0]["sum"] == 0.0
+        assert stats[1]["sum"] == 10.0
+
+
+async def test_statistics_negative_delta_ignored(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Negative consumption (data entry error) is treated as zero."""
+    db = mock_db_empty
+    await db.async_add_reading("e1", "GAS-12345", 100.0, "2026-01-01T10:00:00+00:00")
+    # Erroneous lower reading
+    await db.async_add_reading("e1", "GAS-12345", 95.0, "2026-02-01T10:00:00+00:00")
+    # Corrected reading
+    await db.async_add_reading("e1", "GAS-12345", 120.0, "2026-03-01T10:00:00+00:00")
+
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="e1",
+        title="Gas Meter",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, db)
+        await coordinator.async_refresh()
+
+        stats = list(mock_import.call_args[0][2])
+
+        assert len(stats) == 3
+        assert stats[0]["sum"] == 0.0
+        # 95 - 100 = -5 → ignored, sum stays 0
+        assert stats[1]["sum"] == 0.0
+        # 120 - 95 = 25 → added
+        assert stats[2]["sum"] == 25.0
+
+
+async def test_statistics_uses_entry_title(hass: HomeAssistant, mock_db: MeterDatabase) -> None:
+    """Statistics name uses the config entry title (user-editable)."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+        title="Mein Gaszähler Küche",
+    )
+    entry.add_to_hass(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, mock_db)
+        await coordinator.async_refresh()
+
+        metadata = mock_import.call_args[0][1]
+        assert metadata["name"] == "Mein Gaszähler Küche"

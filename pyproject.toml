@@ -1,6 +1,6 @@
 [project]
 name = "gas-water-meter"
-version = "0.1.0"
+version = "0.1.1"
 description = "Home Assistant custom integration for manual gas and water meter reading entry with OCR, projection, and cost tracking"
 readme = "README.md"
 license = "MIT"
