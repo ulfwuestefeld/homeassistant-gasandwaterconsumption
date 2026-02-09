@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
+from . import ocr as _ocr_module
 from .const import (
     CONF_CURRENCY,
     CONF_METER_NUMBER,
@@ -85,6 +86,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             await db.async_close()
 
         hass.bus.async_listen_once("homeassistant_stop", _close_db)
+
+    # Ensure Tesseract OCR binary is installed (auto-install if possible)
+    if not hass.data[DOMAIN].get("tesseract_checked"):
+        await hass.async_add_executor_job(_ocr_module.ensure_tesseract)
+        hass.data[DOMAIN]["tesseract_checked"] = True
 
     # Register WebSocket commands (once)
     if not hass.data[DOMAIN].get("ws_registered"):

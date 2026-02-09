@@ -316,11 +316,9 @@ class GasWaterMeterPanel extends LitElement {
     return html`
       <div class="panel">
         <div class="toolbar">
-          ${this.narrow
-            ? html`<button class="menu-btn" @click=${this._toggleMenu}>
-                <ha-icon icon="mdi:menu"></ha-icon>
-              </button>`
-            : ""}
+          <button class="menu-btn" @click=${this._toggleMenu}>
+            <ha-icon icon="mdi:menu"></ha-icon>
+          </button>
           <h1>${this._t("panel_title")}</h1>
         </div>
         ${this._meters.length === 0
@@ -344,7 +342,7 @@ class GasWaterMeterPanel extends LitElement {
               class="meter-tab ${this._selectedMeter?.entry_id === m.entry_id ? "active" : ""}"
               @click=${() => this._selectMeter(m)}
             >
-              <ha-icon .icon=${m.meter_type === "gas" ? "mdi:meter-gas" : "mdi:water"}></ha-icon>
+              <ha-icon icon=${m.meter_type === "gas" ? "mdi:meter-gas" : "mdi:water"}></ha-icon>
               ${m.meter_name}
             </button>
           `
@@ -365,7 +363,7 @@ class GasWaterMeterPanel extends LitElement {
         ${tabs.map(
           (t) => html`
             <button class="tab ${this._tab === t.id ? "active" : ""}" @click=${() => this._switchTab(t.id)}>
-              <ha-icon .icon=${t.icon}></ha-icon>
+              <ha-icon icon=${t.icon}></ha-icon>
               <span>${t.label}</span>
             </button>
           `
@@ -584,13 +582,13 @@ class GasWaterMeterPanel extends LitElement {
                   </td>
                   <td class="actions">
                     <button class="icon-btn" title=${this._t(r.image_path ? "replace_photo" : "upload_photo")} @click=${() => this._startHistoryPhotoUpload(r.id)}>
-                      <ha-icon .icon=${"mdi:camera-plus"}></ha-icon>
+                      <ha-icon icon="mdi:camera-plus"></ha-icon>
                     </button>
                     <button class="icon-btn" title=${this._t("edit")} @click=${() => this._startEditReading(r)}>
-                      <ha-icon .icon=${"mdi:pencil"}></ha-icon>
+                      <ha-icon icon="mdi:pencil"></ha-icon>
                     </button>
                     <button class="icon-btn danger" title=${this._t("delete")} @click=${() => this._deleteReading(r.id)}>
-                      <ha-icon .icon=${"mdi:delete"}></ha-icon>
+                      <ha-icon icon="mdi:delete"></ha-icon>
                     </button>
                   </td>
                 </tr>
@@ -635,15 +633,15 @@ class GasWaterMeterPanel extends LitElement {
               </div>
               <div class="reading-card-actions">
                 <button class="action-btn" @click=${() => this._startHistoryPhotoUpload(r.id)}>
-                  <ha-icon .icon=${"mdi:camera-plus"}></ha-icon>
+                  <ha-icon icon="mdi:camera-plus"></ha-icon>
                   ${this._t(r.image_path ? "replace_photo" : "upload_photo")}
                 </button>
                 <button class="action-btn" @click=${() => this._startEditReading(r)}>
-                  <ha-icon .icon=${"mdi:pencil"}></ha-icon>
+                  <ha-icon icon="mdi:pencil"></ha-icon>
                   ${this._t("edit")}
                 </button>
                 <button class="action-btn danger" @click=${() => this._deleteReading(r.id)}>
-                  <ha-icon .icon=${"mdi:delete"}></ha-icon>
+                  <ha-icon icon="mdi:delete"></ha-icon>
                   ${this._t("delete")}
                 </button>
               </div>
@@ -813,10 +811,10 @@ class GasWaterMeterPanel extends LitElement {
                             <td>${this._isGas ? "ct/kWh" : p.currency}</td>
                             <td class="actions">
                               <button class="icon-btn" title=${this._t("edit")} @click=${() => this._startEditPrice(p)}>
-                                <ha-icon .icon=${"mdi:pencil"}></ha-icon>
+                                <ha-icon icon="mdi:pencil"></ha-icon>
                               </button>
                               <button class="icon-btn danger" title=${this._t("delete")} @click=${() => this._deletePrice(p.id)}>
-                                <ha-icon .icon=${"mdi:delete"}></ha-icon>
+                                <ha-icon icon="mdi:delete"></ha-icon>
                               </button>
                             </td>
                           </tr>
@@ -1114,7 +1112,7 @@ class GasWaterMeterPanel extends LitElement {
     return html`
       <div class="lightbox-overlay" @click=${this._closePhotoLightbox}>
         <button class="lightbox-close" @click=${this._closePhotoLightbox}>
-          <ha-icon .icon=${"mdi:close"}></ha-icon>
+          <ha-icon icon="mdi:close"></ha-icon>
         </button>
         <img
           class="lightbox-img"

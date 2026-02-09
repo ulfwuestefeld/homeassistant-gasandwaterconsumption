@@ -28,6 +28,16 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
+@pytest.fixture(autouse=True)
+def _prevent_tesseract_install():
+    """Prevent ensure_tesseract from running real system commands during tests."""
+    with patch(
+        "custom_components.gas_water_meter.ocr.ensure_tesseract",
+        return_value=False,
+    ):
+        yield
+
+
 if sys.platform == "win32":
     # On Windows, the ProactorEventLoop needs real sockets for its self-pipe.
     # pytest-socket blocks socket creation which breaks event loop initialization.
@@ -226,6 +236,10 @@ def mock_tesseract_available():
             "custom_components.gas_water_meter.ocr.is_tesseract_available",
             return_value=True,
         ),
+        patch(
+            "custom_components.gas_water_meter.ocr.ensure_tesseract",
+            return_value=True,
+        ),
     ):
         yield
 
@@ -237,6 +251,10 @@ def mock_tesseract_unavailable():
         patch("custom_components.gas_water_meter.ocr._TESSERACT_AVAILABLE", False),
         patch(
             "custom_components.gas_water_meter.ocr.is_tesseract_available",
+            return_value=False,
+        ),
+        patch(
+            "custom_components.gas_water_meter.ocr.ensure_tesseract",
             return_value=False,
         ),
     ):

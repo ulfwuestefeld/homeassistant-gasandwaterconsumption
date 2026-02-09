@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 from custom_components.gas_water_meter.const import DOMAIN
 from custom_components.gas_water_meter.db import MeterDatabase
-from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant
 
@@ -94,7 +94,8 @@ async def test_gas_reading_sensor(hass: HomeAssistant) -> None:
     assert state.state == "125.3"
     assert state.attributes.get("unit_of_measurement") == UnitOfVolume.CUBIC_METERS
     assert state.attributes.get("device_class") == SensorDeviceClass.GAS
-    assert state.attributes.get("state_class") == SensorStateClass.TOTAL_INCREASING
+    # No state_class - statistics are imported externally with correct timestamps
+    assert state.attributes.get("state_class") is None
 
 
 async def test_water_reading_sensor(hass: HomeAssistant) -> None:

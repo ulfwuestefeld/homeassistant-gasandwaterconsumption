@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
+import shutil
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -31,16 +33,124 @@ def is_heif_available() -> bool:
     return _HEIF_AVAILABLE
 
 
-# Check if pytesseract is available
-_TESSERACT_AVAILABLE = False
-try:
-    import pytesseract
+# ---------------------------------------------------------------------------
+# Tesseract binary auto-installation & availability check
+# ---------------------------------------------------------------------------
 
-    # Verify the binary is accessible
-    pytesseract.get_tesseract_version()
-    _TESSERACT_AVAILABLE = True
-except (OSError, ImportError):
-    _LOGGER.warning("Tesseract OCR is not available. Install pytesseract and the tesseract-ocr binary for OCR support.")
+_TESSERACT_AVAILABLE = False
+
+
+def _check_tesseract() -> bool:
+    """Return True if the tesseract binary and pytesseract wrapper are usable."""
+    try:
+        import pytesseract  # noqa: PLC0415
+
+        pytesseract.get_tesseract_version()
+    except (OSError, ImportError):
+        return False
+    else:
+        return True
+
+
+def _install_tesseract() -> bool:
+    """Try to install the tesseract-ocr system package.
+
+    Supports Alpine Linux (HAOS / Docker) and Debian/Ubuntu.
+    Returns True if installation succeeded.
+    """
+    # Already installed?
+    if shutil.which("tesseract"):
+        return True
+
+    # --- Alpine Linux (apk) - typical for Home Assistant OS ---
+    if shutil.which("apk"):
+        try:
+            _LOGGER.info("Installing tesseract-ocr via apk (Alpine)")
+            subprocess.run(
+                [  # noqa: S607
+                    "apk",
+                    "add",
+                    "--no-cache",
+                    "tesseract-ocr",
+                    "tesseract-ocr-data-eng",
+                    "tesseract-ocr-data-deu",
+                ],
+                check=True,
+                capture_output=True,
+                timeout=120,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            _LOGGER.warning("apk install of tesseract-ocr failed: %s", exc)
+        else:
+            _LOGGER.info("tesseract-ocr installed successfully via apk")
+            return True
+
+    # --- Debian / Ubuntu (apt-get) ---
+    if shutil.which("apt-get"):
+        try:
+            _LOGGER.info("Installing tesseract-ocr via apt-get (Debian)")
+            subprocess.run(
+                ["apt-get", "update", "-qq"],  # noqa: S607
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+            subprocess.run(
+                [  # noqa: S607
+                    "apt-get",
+                    "install",
+                    "-y",
+                    "-qq",
+                    "tesseract-ocr",
+                    "tesseract-ocr-eng",
+                    "tesseract-ocr-deu",
+                ],
+                check=True,
+                capture_output=True,
+                timeout=120,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            _LOGGER.warning("apt-get install of tesseract-ocr failed: %s", exc)
+        else:
+            _LOGGER.info("tesseract-ocr installed successfully via apt-get")
+            return True
+
+    _LOGGER.warning(
+        "Could not auto-install tesseract-ocr. "
+        "Please install it manually (e.g. 'apk add tesseract-ocr' or "
+        "'apt-get install tesseract-ocr')."
+    )
+    return False
+
+
+def ensure_tesseract() -> bool:
+    """Ensure the Tesseract binary is installed and update availability flag.
+
+    This is safe to call multiple times; it short-circuits if Tesseract is
+    already available. It is meant to be called from an executor (blocking I/O).
+    """
+    global _TESSERACT_AVAILABLE  # noqa: PLW0603
+
+    if _check_tesseract():
+        _TESSERACT_AVAILABLE = True
+        return True
+
+    # Try automatic installation
+    _install_tesseract()
+
+    # Re-check after installation attempt
+    _TESSERACT_AVAILABLE = _check_tesseract()
+    if _TESSERACT_AVAILABLE:
+        _LOGGER.info("Tesseract OCR is now available")
+    else:
+        _LOGGER.warning("Tesseract OCR is not available. OCR-based meter reading detection will be disabled.")
+    return _TESSERACT_AVAILABLE
+
+
+# Initial check at import time (best-effort, no install)
+_TESSERACT_AVAILABLE = _check_tesseract()
+if not _TESSERACT_AVAILABLE:
+    _LOGGER.debug("Tesseract OCR not found at import time - will attempt auto-install during setup.")
 
 
 def is_tesseract_available() -> bool:

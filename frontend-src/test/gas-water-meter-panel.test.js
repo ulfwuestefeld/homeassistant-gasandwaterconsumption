@@ -2,12 +2,22 @@ import { fixture, expect, html } from "@open-wc/testing";
 import { setViewport } from "@web/test-runner-commands";
 
 // Stub Home Assistant custom elements that are not available outside HA.
+// The stub mirrors real ha-icon: the "icon" property reflects to/from the
+// HTML attribute so that both `icon="mdi:foo"` (attribute) and `.icon`
+// (property access) work correctly in tests.
 if (!customElements.get("ha-icon")) {
   customElements.define(
     "ha-icon",
     class HaIconStub extends HTMLElement {
       static get observedAttributes() {
         return ["icon"];
+      }
+      get icon() {
+        return this.getAttribute("icon");
+      }
+      set icon(val) {
+        if (val != null) this.setAttribute("icon", val);
+        else this.removeAttribute("icon");
       }
     }
   );
@@ -109,8 +119,8 @@ describe("gas-water-meter-panel", () => {
   // ------------------------------------------------------------------
 
   describe("sidebar menu button", () => {
-    it("shows the hamburger menu when narrow is true", async () => {
-      const el = await createPanel({ narrow: true });
+    it("always shows the hamburger menu button", async () => {
+      const el = await createPanel({ narrow: false });
       const menuBtn = el.shadowRoot.querySelector(".menu-btn");
 
       expect(menuBtn).to.not.be.null;
@@ -119,11 +129,11 @@ describe("gas-water-meter-panel", () => {
       expect(icon.getAttribute("icon")).to.equal("mdi:menu");
     });
 
-    it("hides the hamburger menu when narrow is false", async () => {
-      const el = await createPanel({ narrow: false });
+    it("shows the hamburger menu on narrow viewports too", async () => {
+      const el = await createPanel({ narrow: true });
       const menuBtn = el.shadowRoot.querySelector(".menu-btn");
 
-      expect(menuBtn).to.be.null;
+      expect(menuBtn).to.not.be.null;
     });
 
     it("dispatches hass-toggle-menu event on click", async () => {
@@ -140,21 +150,6 @@ describe("gas-water-meter-panel", () => {
       expect(firedEvent).to.not.be.null;
       expect(firedEvent.bubbles).to.be.true;
       expect(firedEvent.composed).to.be.true;
-    });
-
-    it("toggles narrow dynamically", async () => {
-      const el = await createPanel({ narrow: false });
-      expect(el.shadowRoot.querySelector(".menu-btn")).to.be.null;
-
-      // Switch to narrow
-      el.narrow = true;
-      await el.updateComplete;
-      expect(el.shadowRoot.querySelector(".menu-btn")).to.not.be.null;
-
-      // Switch back
-      el.narrow = false;
-      await el.updateComplete;
-      expect(el.shadowRoot.querySelector(".menu-btn")).to.be.null;
     });
   });
 
