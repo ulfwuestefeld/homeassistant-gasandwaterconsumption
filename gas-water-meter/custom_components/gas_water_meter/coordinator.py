@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -252,7 +252,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
         try:
             self._do_import_statistics(readings)
-        except Exception:  # noqa: BLE001
+        except Exception:
             _LOGGER.warning(
                 "Failed to import reading statistics for %s",
                 self._entry_id,
@@ -270,11 +270,11 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
         If two readings fall into the same hour, the later one wins.
         """
-        from homeassistant.components.recorder.models import (
+        from homeassistant.components.recorder.models import (  # noqa: PLC0415
             StatisticData,
             StatisticMetaData,
         )
-        from homeassistant.components.recorder.statistics import (
+        from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
             async_import_statistics,
         )
 
@@ -294,7 +294,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
             ts = datetime.fromisoformat(reading["timestamp"])
             if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+                ts = ts.replace(tzinfo=UTC)
 
             # Statistics require the start of the hour.
             start = ts.replace(minute=0, second=0, microsecond=0)

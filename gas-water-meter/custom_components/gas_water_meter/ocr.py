@@ -67,12 +67,28 @@ def extract_exif_datetime(image_path: str | Path) -> str | None:
     2. DateTimeDigitized (tag 36868) -- when the image was digitized
     3. DateTime (tag 306) -- last modification time
 
+    If a corresponding timezone offset tag is present (OffsetTimeOriginal,
+    OffsetTimeDigitized, or OffsetTime), it is appended so the returned
+    ISO 8601 string is timezone-aware (e.g. "2026-02-08T15:30:00+01:00").
+
     Returns an ISO 8601 formatted datetime string, or None if no EXIF date is found.
     """
-    # EXIF tag IDs
-    tag_datetime_original = 36867
-    tag_datetime_digitized = 36868
-    tag_datetime = 306
+    # EXIF datetime tag IDs
+    tag_dt_original = 36867
+    tag_dt_digitized = 36868
+    tag_dt_root = 306
+
+    # Corresponding timezone offset tag IDs (stored in ExifIFD)
+    tag_off_original = 36881  # OffsetTimeOriginal
+    tag_off_digitized = 36882  # OffsetTimeDigitized
+    tag_off_root = 36880  # OffsetTime (for root DateTime)
+
+    # Map each datetime tag to its matching offset tag
+    offset_for_tag = {
+        tag_dt_original: tag_off_original,
+        tag_dt_digitized: tag_off_digitized,
+        tag_dt_root: tag_off_root,
+    }
 
     try:
         img = Image.open(image_path)
@@ -85,15 +101,20 @@ def extract_exif_datetime(image_path: str | Path) -> str | None:
         exif_ifd = exif_data.get_ifd(0x8769)  # ExifIFD
 
         exif_datetime_str = None
-        for tag_id in [tag_datetime_original, tag_datetime_digitized]:
+        matched_tag: int | None = None
+
+        for tag_id in [tag_dt_original, tag_dt_digitized]:
             value = exif_ifd.get(tag_id)
             if value:
                 exif_datetime_str = value
+                matched_tag = tag_id
                 break
 
         # Fallback to root DateTime tag
         if exif_datetime_str is None:
-            exif_datetime_str = exif_data.get(tag_datetime)
+            exif_datetime_str = exif_data.get(tag_dt_root)
+            if exif_datetime_str is not None:
+                matched_tag = tag_dt_root
 
         if exif_datetime_str is None:
             return None
@@ -101,11 +122,22 @@ def extract_exif_datetime(image_path: str | Path) -> str | None:
         # EXIF datetime format is "YYYY:MM:DD HH:MM:SS"
         # Convert to ISO 8601 format
         parsed = datetime.strptime(exif_datetime_str, "%Y:%m:%d %H:%M:%S")
-        return parsed.isoformat()
+        iso_str = parsed.isoformat()
+
+        # Look up the timezone offset tag corresponding to the matched datetime tag
+        offset_tag = offset_for_tag.get(matched_tag)
+        if offset_tag is not None:
+            # Offset tags live in the ExifIFD sub-directory
+            offset_value = exif_ifd.get(offset_tag)
+            if offset_value and isinstance(offset_value, str):
+                # Value is like "+01:00" or "-05:00"
+                iso_str += offset_value.strip()
 
     except Exception:
         _LOGGER.debug("Could not extract EXIF datetime from %s", image_path, exc_info=True)
         return None
+    else:
+        return iso_str
 
 
 def preprocess_image(image_path: str | Path) -> Image.Image:

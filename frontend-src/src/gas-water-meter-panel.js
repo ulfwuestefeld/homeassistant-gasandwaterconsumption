@@ -20,6 +20,8 @@ const TRANSLATIONS = {
     processing: "Processing...",
     ocr_detected: "OCR detected",
     confidence: "Confidence",
+    ocr_not_available: "Tesseract OCR is not installed \u2013 automatic meter reading detection is not available.",
+    ocr_no_result: "Meter reading could not be detected automatically \u2013 please enter it manually.",
     reading_label: "Meter reading (m\u00b3)",
     reading_placeholder: "e.g. 12345.678",
     meter_number_label: "Meter number",
@@ -90,6 +92,8 @@ const TRANSLATIONS = {
     processing: "Wird verarbeitet...",
     ocr_detected: "OCR erkannt",
     confidence: "Konfidenz",
+    ocr_not_available: "Tesseract OCR ist nicht installiert \u2013 automatische Z\u00e4hlerstanderkennung nicht verf\u00fcgbar.",
+    ocr_no_result: "Z\u00e4hlerstand konnte nicht automatisch erkannt werden \u2013 bitte manuell eingeben.",
     reading_label: "Z\u00e4hlerstand (m\u00b3)",
     reading_placeholder: "z.B. 12345.678",
     meter_number_label: "Z\u00e4hlernummer",
@@ -400,8 +404,12 @@ class GasWaterMeterPanel extends LitElement {
               ? html`<img class="preview" src="/local/gas_water_meter_media" alt="Preview" style="display:none" />`
               : ""}
             ${this._uploadResult?.ocr_reading != null
-              ? html`<div class="ocr-hint">${this._t("ocr_detected")}: ${this._uploadResult.ocr_reading} (${this._t("confidence")}: ${Math.round(this._uploadResult.ocr_confidence * 100)}%)</div>`
-              : ""}
+              ? html`<div class="ocr-hint ocr-success">${this._t("ocr_detected")}: ${this._uploadResult.ocr_reading} (${this._t("confidence")}: ${Math.round(this._uploadResult.ocr_confidence * 100)}%)</div>`
+              : this._uploadResult && this._uploadResult.ocr_available === false
+                ? html`<div class="ocr-hint ocr-warn">${this._t("ocr_not_available")}</div>`
+                : this._uploadResult && this._uploadResult.ocr_available === true
+                  ? html`<div class="ocr-hint ocr-warn">${this._t("ocr_no_result")}</div>`
+                  : ""}
           </div>
           <label>${this._t("reading_label")}</label>
           <input type="number" step="0.001" id="reading-value"
@@ -1150,7 +1158,12 @@ class GasWaterMeterPanel extends LitElement {
     if (!iso) return "";
     try {
       const d = new Date(iso);
-      return d.toISOString().slice(0, 16);
+      if (isNaN(d.getTime())) return "";
+      // Use local time components – datetime-local inputs expect local time,
+      // NOT UTC.  The previous .toISOString().slice() silently converted to
+      // UTC which shifted the displayed time by the user's UTC offset.
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     } catch {
       return "";
     }
@@ -1478,10 +1491,16 @@ class GasWaterMeterPanel extends LitElement {
     }
     .ocr-hint {
       font-size: 13px;
-      color: var(--primary);
       padding: 6px 10px;
-      background: rgba(3, 169, 244, 0.08);
       border-radius: 4px;
+    }
+    .ocr-hint.ocr-success {
+      color: var(--primary);
+      background: rgba(3, 169, 244, 0.08);
+    }
+    .ocr-hint.ocr-warn {
+      color: var(--warning-color, #ff9800);
+      background: rgba(255, 152, 0, 0.08);
     }
     .spinner {
       font-size: 13px;

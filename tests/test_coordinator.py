@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from custom_components.gas_water_meter.const import DAYS_PER_MONTH, DAYS_PER_YEAR
@@ -899,11 +899,11 @@ async def test_statistics_imported_with_reading_timestamps(hass: HomeAssistant, 
 
         # Verify timestamps match reading dates (start of hour)
         expected_starts = [
-            datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
-            datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
-            datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc),
+            datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC),
+            datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC),
+            datetime(2026, 2, 1, 10, 0, 0, tzinfo=UTC),
         ]
-        for stat, expected in zip(stats, expected_starts):
+        for stat, expected in zip(stats, expected_starts, strict=True):
             assert stat["start"] == expected
 
         # state = raw meter reading
@@ -1054,12 +1054,12 @@ async def test_statistics_hourly_deduplication(hass: HomeAssistant, mock_db_empt
         assert len(stats) == 2
 
         # Hour 10: later reading (105.0) wins
-        assert stats[0]["start"] == datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
+        assert stats[0]["start"] == datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
         assert stats[0]["state"] == 105.0
         assert stats[0]["sum"] == 5.0  # 100 → 105
 
         # Hour 11
-        assert stats[1]["start"] == datetime(2026, 1, 1, 11, 0, 0, tzinfo=timezone.utc)
+        assert stats[1]["start"] == datetime(2026, 1, 1, 11, 0, 0, tzinfo=UTC)
         assert stats[1]["state"] == 110.0
         assert stats[1]["sum"] == 10.0  # 5 + (110 - 105)
 

@@ -540,6 +540,61 @@ describe("gas-water-meter-panel", () => {
   });
 
   // ------------------------------------------------------------------
+  // _formatDatetimeLocal helper
+  // ------------------------------------------------------------------
+
+  describe("_formatDatetimeLocal helper", () => {
+    it("returns empty string for null", async () => {
+      const el = await createPanel();
+      expect(el._formatDatetimeLocal(null)).to.equal("");
+    });
+
+    it("returns empty string for undefined", async () => {
+      const el = await createPanel();
+      expect(el._formatDatetimeLocal(undefined)).to.equal("");
+    });
+
+    it("returns empty string for empty string", async () => {
+      const el = await createPanel();
+      expect(el._formatDatetimeLocal("")).to.equal("");
+    });
+
+    it("formats a naive ISO string using local time (no UTC shift)", async () => {
+      const el = await createPanel();
+      // A naive ISO string should be interpreted as local time and
+      // returned as local time -- NOT shifted to UTC.
+      const result = el._formatDatetimeLocal("2026-02-08T15:30:00");
+      // The browser interprets "2026-02-08T15:30:00" as local time,
+      // so the formatted output must also show 15:30 in local time.
+      expect(result).to.equal("2026-02-08T15:30");
+    });
+
+    it("formats a timezone-aware ISO string as local time", async () => {
+      const el = await createPanel();
+      // "2026-02-08T15:30:00+01:00" is 14:30 UTC.
+      // In the browser's local timezone, the display depends on the
+      // browser timezone, but the result must match the local Date components.
+      const input = "2026-02-08T15:30:00+01:00";
+      const d = new Date(input);
+      const pad = (n) => String(n).padStart(2, "0");
+      const expected = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const result = el._formatDatetimeLocal(input);
+      expect(result).to.equal(expected);
+    });
+
+    it("returns a string suitable for datetime-local input (YYYY-MM-DDTHH:MM)", async () => {
+      const el = await createPanel();
+      const result = el._formatDatetimeLocal("2026-06-15T10:00:00");
+      expect(result).to.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    });
+
+    it("returns empty string for invalid date", async () => {
+      const el = await createPanel();
+      expect(el._formatDatetimeLocal("not-a-date")).to.equal("");
+    });
+  });
+
+  // ------------------------------------------------------------------
   // Photo thumbnails in history
   // ------------------------------------------------------------------
 
@@ -910,6 +965,94 @@ describe("gas-water-meter-panel", () => {
       const text = el.shadowRoot.textContent;
       // "Noch keine Ablesungen vorhanden."
       expect(text).to.include("keine Ablesungen");
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // OCR upload feedback messages
+  // ------------------------------------------------------------------
+
+  describe("OCR upload feedback", () => {
+    it("shows success hint when ocr_reading is present", async () => {
+      const el = await createPanel();
+      // Simulate a successful OCR upload result
+      el._uploadResult = {
+        image_path: "/media/test.jpg",
+        ocr_available: true,
+        ocr_reading: 12345.678,
+        ocr_confidence: 0.95,
+        ocr_meter_number: "GAS-001",
+        exif_datetime: null,
+      };
+      await el.updateComplete;
+
+      const hint = el.shadowRoot.querySelector(".ocr-hint.ocr-success");
+      expect(hint).to.not.be.null;
+      expect(hint.textContent).to.include("12345.678");
+      expect(hint.textContent).to.include("95%");
+    });
+
+    it("shows warning when ocr_available is false", async () => {
+      const el = await createPanel();
+      el._uploadResult = {
+        image_path: "/media/test.jpg",
+        ocr_available: false,
+        ocr_reading: null,
+        ocr_confidence: 0.0,
+        ocr_meter_number: null,
+        exif_datetime: null,
+      };
+      await el.updateComplete;
+
+      const hint = el.shadowRoot.querySelector(".ocr-hint.ocr-warn");
+      expect(hint).to.not.be.null;
+      // German: "nicht installiert" / English: "not installed"
+      expect(hint.textContent).to.include("nicht installiert");
+    });
+
+    it("shows no-result warning when ocr_available is true but no reading", async () => {
+      const el = await createPanel();
+      el._uploadResult = {
+        image_path: "/media/test.jpg",
+        ocr_available: true,
+        ocr_reading: null,
+        ocr_confidence: 0.0,
+        ocr_meter_number: null,
+        exif_datetime: null,
+      };
+      await el.updateComplete;
+
+      const hint = el.shadowRoot.querySelector(".ocr-hint.ocr-warn");
+      expect(hint).to.not.be.null;
+      // German: "nicht automatisch erkannt" / English: "could not be detected"
+      expect(hint.textContent).to.include("nicht automatisch erkannt");
+    });
+
+    it("does not show any OCR hint when no upload result exists", async () => {
+      const el = await createPanel();
+      // _uploadResult is null by default
+      expect(el._uploadResult).to.be.null;
+      await el.updateComplete;
+
+      const hints = el.shadowRoot.querySelectorAll(".ocr-hint");
+      expect(hints.length).to.equal(0);
+    });
+
+    it("pre-fills reading input with OCR value when available", async () => {
+      const el = await createPanel();
+      el._uploadResult = {
+        image_path: "/media/test.jpg",
+        ocr_available: true,
+        ocr_reading: 42.5,
+        ocr_confidence: 0.88,
+        ocr_meter_number: "W-007",
+        exif_datetime: null,
+      };
+      await el.updateComplete;
+
+      const readingInput = el.shadowRoot.getElementById("reading-value");
+      expect(readingInput).to.not.be.null;
+      expect(parseFloat(readingInput.value)).to.equal(42.5);
     });
   });
 

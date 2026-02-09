@@ -208,6 +208,124 @@ class TestExtractExifDatetime:
             result = extract_exif_datetime("/fake/path.jpg")
         assert result == "2026-02-08T10:00:00"
 
+    # ---- Timezone offset tests ----
+
+    def test_offset_time_original_appended(self) -> None:
+        """Test that OffsetTimeOriginal is appended to DateTimeOriginal."""
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        mock_exif.get_ifd.return_value = {
+            36867: "2026:02:08 15:30:00",  # DateTimeOriginal
+            36881: "+01:00",  # OffsetTimeOriginal
+        }
+        mock_exif.get.return_value = None
+        mock_img.getexif.return_value = mock_exif
+
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
+        assert result == "2026-02-08T15:30:00+01:00"
+
+    def test_offset_time_digitized_appended(self) -> None:
+        """Test that OffsetTimeDigitized is appended to DateTimeDigitized."""
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        mock_exif.get_ifd.return_value = {
+            36868: "2026:01:15 09:45:00",  # DateTimeDigitized
+            36882: "-05:00",  # OffsetTimeDigitized
+        }
+        mock_exif.get.return_value = None
+        mock_img.getexif.return_value = mock_exif
+
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
+        assert result == "2026-01-15T09:45:00-05:00"
+
+    def test_offset_time_for_root_datetime(self) -> None:
+        """Test that OffsetTime is appended to root DateTime tag."""
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        # No DateTimeOriginal / DateTimeDigitized in IFD
+        mock_exif.get_ifd.return_value = {
+            36880: "+02:00",  # OffsetTime
+        }
+        mock_exif.get.return_value = "2026:06:15 12:00:00"  # Root DateTime (306)
+        mock_img.getexif.return_value = mock_exif
+
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
+        assert result == "2026-06-15T12:00:00+02:00"
+
+    def test_no_offset_returns_naive_datetime(self) -> None:
+        """Test that missing offset tags produce a naive ISO string."""
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        mock_exif.get_ifd.return_value = {
+            36867: "2026:02:08 15:30:00",  # DateTimeOriginal only, no offset
+        }
+        mock_exif.get.return_value = None
+        mock_img.getexif.return_value = mock_exif
+
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
+        assert result == "2026-02-08T15:30:00"
+        assert "+" not in result
+        assert "Z" not in result
+
+    def test_utc_offset(self) -> None:
+        """Test that UTC offset (+00:00) is handled."""
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        mock_exif.get_ifd.return_value = {
+            36867: "2026:02:08 14:30:00",
+            36881: "+00:00",
+        }
+        mock_exif.get.return_value = None
+        mock_img.getexif.return_value = mock_exif
+
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
+        assert result == "2026-02-08T14:30:00+00:00"
+
+    def test_offset_with_whitespace_is_stripped(self) -> None:
+        """Test that offset values with trailing whitespace are handled."""
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        mock_exif.get_ifd.return_value = {
+            36867: "2026:02:08 15:30:00",
+            36881: "+01:00 ",  # Trailing whitespace
+        }
+        mock_exif.get.return_value = None
+        mock_img.getexif.return_value = mock_exif
+
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
+        assert result == "2026-02-08T15:30:00+01:00"
+
+    def test_offset_original_takes_priority_when_both_present(self) -> None:
+        """Test that OffsetTimeOriginal is used with DateTimeOriginal even if OffsetTimeDigitized is also present."""
+        mock_img = MagicMock()
+        mock_exif = MagicMock()
+        mock_exif.__bool__ = lambda _s: True
+        mock_exif.get_ifd.return_value = {
+            36867: "2026:02:08 15:30:00",  # DateTimeOriginal
+            36868: "2026:02:08 15:30:00",  # DateTimeDigitized
+            36881: "+01:00",  # OffsetTimeOriginal
+            36882: "+02:00",  # OffsetTimeDigitized
+        }
+        mock_exif.get.return_value = None
+        mock_img.getexif.return_value = mock_exif
+
+        with patch("custom_components.gas_water_meter.ocr.Image.open", return_value=mock_img):
+            result = extract_exif_datetime("/fake/path.jpg")
+        # DateTimeOriginal matched, so OffsetTimeOriginal (+01:00) is used
+        assert result == "2026-02-08T15:30:00+01:00"
+
 
 class TestPreprocessImage:
     """Tests for the image preprocessing pipeline."""

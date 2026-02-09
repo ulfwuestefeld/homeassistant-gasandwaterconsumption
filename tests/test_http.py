@@ -296,6 +296,7 @@ class TestProcessImage:
         assert result["image_path"] == "/tmp/test.jpg"
         assert result["exif_datetime"] is None
         assert result["ocr_reading"] is None
+        assert result["ocr_available"] is False
 
     async def test_with_entry_id_persists_image(self, hass: HomeAssistant, mock_tesseract_unavailable) -> None:
         view = ImageUploadView(hass)
@@ -325,6 +326,43 @@ class TestProcessImage:
             result = await view._process_image("/tmp/test.jpg", None)
 
         assert result["exif_datetime"] == "2026-03-01T14:30:00"
+
+    async def test_ocr_available_true_when_tesseract_installed(
+        self, hass: HomeAssistant, mock_tesseract_available
+    ) -> None:
+        view = ImageUploadView(hass)
+        mock_result = MagicMock()
+        mock_result.meter_reading = 42.0
+        mock_result.meter_number = "W-001"
+        mock_result.confidence = 0.85
+
+        with (
+            patch(
+                "custom_components.gas_water_meter.http.extract_exif_datetime",
+                return_value=None,
+            ),
+            patch(
+                "custom_components.gas_water_meter.http.read_meter_image",
+                return_value=mock_result,
+            ),
+        ):
+            result = await view._process_image("/tmp/test.jpg", None)
+
+        assert result["ocr_available"] is True
+        assert result["ocr_reading"] == 42.0
+
+    async def test_ocr_available_false_when_tesseract_missing(
+        self, hass: HomeAssistant, mock_tesseract_unavailable
+    ) -> None:
+        view = ImageUploadView(hass)
+        with patch(
+            "custom_components.gas_water_meter.http.extract_exif_datetime",
+            return_value=None,
+        ):
+            result = await view._process_image("/tmp/test.jpg", None)
+
+        assert result["ocr_available"] is False
+        assert result["ocr_reading"] is None
 
 
 # ---------------------------------------------------------------------------

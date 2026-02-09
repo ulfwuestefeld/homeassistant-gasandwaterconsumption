@@ -107,6 +107,7 @@ class ImageUploadView(HomeAssistantView):
         return {
             "image_path": image_path,
             "exif_datetime": exif_dt,
+            "ocr_available": is_tesseract_available(),
             "ocr_reading": ocr_reading,
             "ocr_meter_number": ocr_meter_number,
             "ocr_confidence": ocr_confidence,
