@@ -5,6 +5,13 @@ All notable changes to the Gas & Water Meter add-on will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-02-09
+
+### Fixed
+
+- Energy Dashboard compatibility restored (re-added state_class=TOTAL_INCREASING to reading sensor)
+- External statistics remain available as alternative for correct historical date attribution
+
 ## [0.1.2] - 2026-02-09
 
 ### Added
@@ -16,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Consumption attributed to entry date instead of reading date (removed state_class from reading sensor)
+- External statistics with correct reading timestamps for accurate historical charts in Energy Dashboard
 - EXIF timestamps 1 hour too early (timezone offsets now correctly parsed)
 - ha-icon not rendering in Companion App (switched to attribute bindings)
 - Sidebar menu inaccessible in Companion App (hamburger button always visible)
@@ -24,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Energy Dashboard must use external statistic gas_water_meter:<entry_id> instead of sensor entity
+- Reading sensor retains state_class=TOTAL_INCREASING; external statistics available as alternative for accurate historical attribution
 - ocr.py refactored with auto-install workflow (ensure_tesseract)
 - async_setup calls ensure_tesseract on first load
 

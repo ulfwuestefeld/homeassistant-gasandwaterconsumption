@@ -54,14 +54,14 @@ def _gas_water_device_class(desc: MeterSensorDescription, meter_type: str) -> Se
 # Sensor descriptions -- 12 common sensors + 1 gas-only sensor
 SENSOR_DESCRIPTIONS: tuple[MeterSensorDescription, ...] = (
     # --- Core Sensors ---
-    # NOTE: No state_class here!  state_class=TOTAL_INCREASING would cause
-    # HA's recorder to auto-create statistics at the *entry* time (when the
-    # sensor value changes) instead of at the *reading* date the user specified.
-    # Correct historical statistics are imported as external statistics by the
-    # coordinator (_do_import_statistics) with statistic_id "gas_water_meter:<entry_id>".
+    # state_class=TOTAL_INCREASING is required for Energy Dashboard compatibility.
+    # The recorder auto-creates statistics at the *entry* time; for correct
+    # historical charts the coordinator also imports external statistics
+    # (gas_water_meter:<entry_id>) with the reading's actual timestamp.
     MeterSensorDescription(
         key="reading",
         translation_key="reading",
+        state_class=SensorStateClass.TOTAL_INCREASING,
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         gas_device_class=SensorDeviceClass.GAS,
         water_device_class=SensorDeviceClass.WATER,
@@ -230,7 +230,7 @@ class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
             name=f"{device_prefix} - {meter_name}",
             manufacturer="Manual Entry",
             model=f"{meter_type.capitalize()} Meter",
-            sw_version="0.1.2",
+            sw_version="0.1.3",
         )
 
     @property

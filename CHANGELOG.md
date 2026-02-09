@@ -5,6 +5,13 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-02-09
+
+### Fixed
+
+- **Energy Dashboard compatibility restored** - re-added `state_class=TOTAL_INCREASING` to reading sensor; removing it in 0.1.2 broke Energy Dashboard (sensors could no longer be added, "Statistiken nicht definiert" / "Unerwartete Zustandsklasse" warnings)
+- Sensor entity works directly in Energy Dashboard again; external statistics (`gas_water_meter:<entry_id>`) remain available as alternative for correct historical date attribution
+
 ## [0.1.2] - 2026-02-09
 
 ### Added
@@ -16,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Consumption attributed to entry date instead of reading date** - removed `state_class=TOTAL_INCREASING` from the reading sensor; HA's recorder no longer creates auto-statistics at the entry time; the Energy Dashboard now uses external statistics with correct reading timestamps
+- **External statistics for historical accuracy** - coordinator imports external statistics (`gas_water_meter:<entry_id>`) with reading timestamps alongside the sensor's recorder statistics; users can optionally use the external statistic in the Energy Dashboard for correct historical date attribution
 - **EXIF timestamps 1 hour too early** - timezone offsets from EXIF data were not being extracted, causing naive UTC interpretation; now correctly parsed and appended
 - **`ha-icon` not rendering in Companion App** - switched from Lit property bindings (`.icon=`) to HTML attribute bindings (`icon=`) for reliable rendering in custom panels
 - **Sidebar menu inaccessible in Companion App** - hamburger menu button is now always displayed, removing the unreliable `narrow` property check
@@ -24,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Reading sensor no longer has `state_class`; Energy Dashboard must use external statistic `gas_water_meter:<entry_id>` instead of the sensor entity
+- Reading sensor retains `state_class=TOTAL_INCREASING` for Energy Dashboard compatibility; external statistics with correct timestamps available as alternative
 - `ocr.py` refactored: `_check_tesseract()`, `_install_tesseract()`, `ensure_tesseract()` for auto-install workflow
 - `__init__.py` calls `ensure_tesseract()` during `async_setup` (runs once via `hass.async_add_executor_job`)
 - Python test count increased from ~120 to 227; frontend test count increased from 27 to 72

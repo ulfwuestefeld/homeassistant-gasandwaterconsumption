@@ -17,7 +17,7 @@ You use mocks for mocking external systems.
 - **Domain**: `gas_water_meter`
 - **Type**: Home Assistant Add-on containing a custom integration (service, calculated)
 - **Distribution**: Private GitHub repository, installed via SSH deploy key as add-on repository
-- **Version**: 0.1.2
+- **Version**: 0.1.3
 - **Python**: >= 3.12
 - **Pattern**: Async-first, config-entry-based, coordinator pattern (no polling)
 - **HA Skill**: Use the `homeassistant-development` Cursor skill for HA patterns
@@ -85,7 +85,7 @@ You use mocks for mocking external systems.
 - WebSocket API: Custom commands in websocket.py for frontend-backend CRUD (readings, prices, meters, statistics, gas_params)
 - REST API: http.py provides /api/gas_water_meter/upload_image for multipart photo uploads (max 20 MB, 21 MP)
 - Prices: Support validity periods (valid_from, optional valid_to)
-- Energy Dashboard: external statistics with correct reading timestamps (statistic_id: gas_water_meter:<entry_id>); reading sensor has no state_class (prevents HA recorder from creating wrong auto-statistics at entry time)
+- Energy Dashboard: reading sensor with state_class TOTAL_INCREASING for direct use; additionally, external statistics with correct reading timestamps (statistic_id: gas_water_meter:<entry_id>) are imported by the coordinator for accurate historical attribution
 - Gas vs Water: Distinguished by device_class, icons, device name, persistence, pricing model
 - Add-on copies integration files to /config/custom_components/ on startup
 - Tests use `pythonpath = ["gas-water-meter"]` in pyproject.toml
