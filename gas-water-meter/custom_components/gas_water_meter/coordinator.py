@@ -66,6 +66,9 @@ class MeterCoordinatorData:
     calorific_value: float | None = None
     condition_factor: float | None = None
 
+    # Annual base fee from current price entry
+    current_base_fee: float | None = None
+
     # Extra attributes for sensors
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -99,9 +102,14 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         self._meter_number: str = entry.data[CONF_METER_NUMBER]
         self._currency: str = entry.data.get(CONF_CURRENCY, "EUR")
 
-        # Gas-specific conversion factors
-        self._calorific_value: float = entry.data.get(CONF_CALORIFIC_VALUE, DEFAULT_CALORIFIC_VALUE)
-        self._condition_factor: float = entry.data.get(CONF_CONDITION_FACTOR, DEFAULT_CONDITION_FACTOR)
+        # Gas-specific default conversion factors (config-entry level).
+        # These serve as fallback when a price entry has no explicit factors.
+        self._default_calorific_value: float = entry.data.get(
+            CONF_CALORIFIC_VALUE, DEFAULT_CALORIFIC_VALUE,
+        )
+        self._default_condition_factor: float = entry.data.get(
+            CONF_CONDITION_FACTOR, DEFAULT_CONDITION_FACTOR,
+        )
 
         # Change detection for statistics import
         self._last_stats_fingerprint: tuple[tuple[Any, ...], ...] | None = None
@@ -123,18 +131,53 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
         return data
 
-    def _m3_to_kwh(self, m3: float) -> float:
-        """Convert m³ gas consumption to kWh using calorific value and condition factor."""
-        return m3 * self._calorific_value * self._condition_factor
+    # ------------------------------------------------------------------
+    # Gas conversion helpers
+    # ------------------------------------------------------------------
 
-    def _compute_cost(self, consumption_m3: float, price_per_unit: float) -> float:
+    def _resolve_gas_factors(
+        self, price_entry: dict[str, Any] | None = None,
+    ) -> tuple[float, float]:
+        """Return (calorific_value, condition_factor) for a price entry.
+
+        Per-price factors take precedence; the config-entry defaults are
+        used when the price row has NULL values (e.g. legacy data before
+        the schema-v2 migration).
+        """
+        cv = (
+            price_entry.get("calorific_value")
+            if price_entry is not None
+            else None
+        )
+        cf = (
+            price_entry.get("condition_factor")
+            if price_entry is not None
+            else None
+        )
+        return (
+            cv if cv is not None else self._default_calorific_value,
+            cf if cf is not None else self._default_condition_factor,
+        )
+
+    @staticmethod
+    def _m3_to_kwh(m3: float, calorific_value: float, condition_factor: float) -> float:
+        """Convert m³ gas consumption to kWh."""
+        return m3 * calorific_value * condition_factor
+
+    def _compute_cost(
+        self,
+        consumption_m3: float,
+        price_per_unit: float,
+        calorific_value: float,
+        condition_factor: float,
+    ) -> float:
         """Compute cost from m³ consumption and price.
 
         For gas: price is in ct/kWh, so cost = kWh * price / 100 (EUR).
         For water: price is in EUR/m³, so cost = m³ * price (EUR).
         """
         if self._meter_type == METER_TYPE_GAS:
-            kwh = self._m3_to_kwh(consumption_m3)
+            kwh = self._m3_to_kwh(consumption_m3, calorific_value, condition_factor)
             return round(kwh * price_per_unit / 100.0, 2)
         return round(consumption_m3 * price_per_unit, 2)
 
@@ -146,13 +189,19 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             currency=self._currency,
         )
 
-        # Expose gas conversion factors for sensors
-        if self._meter_type == METER_TYPE_GAS:
-            data.calorific_value = self._calorific_value
-            data.condition_factor = self._condition_factor
-
         last = await self.db.async_get_last_reading(self._entry_id)
         prev = await self.db.async_get_previous_reading(self._entry_id)
+
+        # Resolve gas conversion factors from current price (or defaults).
+        current_price_entry = await self.db.async_get_current_price(self._entry_id)
+        if self._meter_type == METER_TYPE_GAS:
+            cv, cf = self._resolve_gas_factors(current_price_entry)
+            data.calorific_value = cv
+            data.condition_factor = cf
+
+        # Annual base fee from current price entry (applies to all meter types)
+        if current_price_entry is not None:
+            data.current_base_fee = current_price_entry.get("base_fee")
 
         if last is None:
             _LOGGER.debug("No readings found for entry %s", self._entry_id)
@@ -173,9 +222,14 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             if days is not None and days > 0:
                 data.days_between = round(days, 1)
 
-            # Gas: compute energy consumption in kWh
+            # Gas: compute energy consumption in kWh using the price factors
+            # that were active at the start of the consumption period.
             if self._meter_type == METER_TYPE_GAS and data.consumption is not None:
-                data.energy_consumption = round(self._m3_to_kwh(data.consumption), 3)
+                period_price = await self.db.async_get_price_at(self._entry_id, prev["timestamp"])
+                ecv, ecf = self._resolve_gas_factors(period_price)
+                data.energy_consumption = round(
+                    self._m3_to_kwh(data.consumption, ecv, ecf), 3,
+                )
 
         # Projection: based only on readings with the current meter number.
         first = await self.db.async_get_first_reading_for_meter(self._entry_id, last["meter_number"])
@@ -188,37 +242,74 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
                 data.yearly_projection = round(data.daily_average * DAYS_PER_YEAR, 3)
 
         # Cost calculations (prev is only used when same meter)
-        await self._compute_costs(data, prev if same_meter else None)
+        await self._compute_costs(data, prev if same_meter else None, current_price_entry)
 
         return data
+
+    @staticmethod
+    def _prorate_base_fee(base_fee: float | None, days: float) -> float:
+        """Pro-rate an annual base fee to a given number of days.
+
+        Returns 0.0 when *base_fee* is ``None`` (backwards-compatible).
+        """
+        if base_fee is None:
+            return 0.0
+        return round(base_fee * days / DAYS_PER_YEAR, 2)
 
     async def _compute_costs(
         self,
         data: MeterCoordinatorData,
         prev: dict[str, Any] | None,
+        current_price_entry: dict[str, Any] | None,
     ) -> None:
         """Fill cost fields in data.
+
+        Each price entry carries its own gas conversion factors.  The
+        factors from the period-specific price are used for historical
+        cost (last_period_cost) while the current price's factors are
+        used for projected costs.
+
+        An annual base fee (Jahresgrundgebühr) from the price entry is
+        pro-rated and added to every cost figure.
 
         Gas: price is in ct/kWh, cost = m³ * Brennwert * Zustandszahl * price / 100.
         Water: price is in EUR/m³, cost = m³ * price.
         """
-        current_price_entry = await self.db.async_get_current_price(self._entry_id)
         if current_price_entry is None:
             return
 
         data.current_price = current_price_entry["price_per_unit"]
+        cur_cv, cur_cf = self._resolve_gas_factors(current_price_entry)
+        cur_base_fee = current_price_entry.get("base_fee")
 
-        # Last period cost
+        # Last period cost — uses the price (and factors) that were active
+        # at the start of the consumption period.
         if data.consumption is not None and prev is not None:
             period_price = await self.db.async_get_price_at(self._entry_id, prev["timestamp"])
             if period_price is not None:
-                data.last_period_cost = self._compute_cost(data.consumption, period_price["price_per_unit"])
+                pp_cv, pp_cf = self._resolve_gas_factors(period_price)
+                consumption_cost = self._compute_cost(
+                    data.consumption, period_price["price_per_unit"], pp_cv, pp_cf,
+                )
+                pp_base_fee = period_price.get("base_fee")
+                prorated = self._prorate_base_fee(pp_base_fee, data.days_between or 0.0)
+                data.last_period_cost = round(consumption_cost + prorated, 2)
 
-        # Projected costs
+        # Projected costs — use current price and its factors.
         if data.monthly_projection is not None:
-            data.monthly_projected_cost = self._compute_cost(data.monthly_projection, data.current_price)
+            consumption_cost = self._compute_cost(
+                data.monthly_projection, data.current_price, cur_cv, cur_cf,
+            )
+            prorated = self._prorate_base_fee(cur_base_fee, DAYS_PER_MONTH)
+            data.monthly_projected_cost = round(consumption_cost + prorated, 2)
         if data.yearly_projection is not None:
-            data.yearly_projected_cost = self._compute_cost(data.yearly_projection, data.current_price)
+            consumption_cost = self._compute_cost(
+                data.yearly_projection, data.current_price, cur_cv, cur_cf,
+            )
+            # Yearly: full base fee (no pro-rating needed)
+            data.yearly_projected_cost = round(
+                consumption_cost + (cur_base_fee or 0.0), 2,
+            )
 
     # ------------------------------------------------------------------
     # External statistics import for the Energy Dashboard

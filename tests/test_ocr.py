@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -476,6 +477,81 @@ class TestExtFromContentType:
 
     def test_unknown_type(self) -> None:
         assert _ext_from_content_type("application/octet-stream") is None
+
+
+class TestTessdataConfig:
+    """Tests for custom tessdata directory handling."""
+
+    def test_returns_empty_when_no_traineddata_files(self, tmp_path: Path) -> None:
+        """Test that empty tessdata dir falls back to system default."""
+        from custom_components.gas_water_meter.ocr import _get_tessdata_config  # noqa: PLC0415
+
+        empty_dir = tmp_path / "tessdata"
+        empty_dir.mkdir()
+        with patch("custom_components.gas_water_meter.ocr._TESSDATA_DIR", empty_dir):
+            assert _get_tessdata_config() == ""
+
+    def test_returns_config_when_traineddata_exists(self, tmp_path: Path) -> None:
+        """Test that --tessdata-dir is returned when .traineddata files exist."""
+        from custom_components.gas_water_meter.ocr import _get_tessdata_config  # noqa: PLC0415
+
+        td_dir = tmp_path / "tessdata"
+        td_dir.mkdir()
+        (td_dir / "eng.traineddata").write_bytes(b"fake")
+        with patch("custom_components.gas_water_meter.ocr._TESSDATA_DIR", td_dir):
+            result = _get_tessdata_config()
+            assert f"--tessdata-dir {td_dir}" == result
+
+    def test_returns_empty_when_dir_missing(self, tmp_path: Path) -> None:
+        """Test that a non-existent tessdata directory causes fallback."""
+        from custom_components.gas_water_meter.ocr import _get_tessdata_config  # noqa: PLC0415
+
+        missing = tmp_path / "no_such_dir"
+        with patch("custom_components.gas_water_meter.ocr._TESSDATA_DIR", missing):
+            assert _get_tessdata_config() == ""
+
+    def test_tessdata_dir_passed_to_pytesseract(self, tmp_path: Path) -> None:
+        """Test that custom tessdata dir is forwarded to all pytesseract calls."""
+        import custom_components.gas_water_meter.ocr as ocr_mod  # noqa: PLC0415
+
+        # Prepare tessdata dir with a traineddata file
+        td_dir = tmp_path / "tessdata"
+        td_dir.mkdir()
+        (td_dir / "eng.traineddata").write_bytes(b"fake")
+
+        # Create a test image
+        img = Image.new("RGB", (200, 100), color="white")
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)  # noqa: SIM115
+        img.save(tmp.name, format="JPEG")
+        tmp.close()
+
+        mock_tess = MagicMock()
+        mock_tess.image_to_string.side_effect = ["12345.678", "full text"]
+        mock_tess.image_to_data.return_value = {"conf": ["95"]}
+        mock_tess.Output.DICT = "dict"
+
+        with (
+            patch("custom_components.gas_water_meter.ocr._TESSERACT_AVAILABLE", True),
+            patch("custom_components.gas_water_meter.ocr._TESSDATA_DIR", td_dir),
+            patch.dict("sys.modules", {"pytesseract": mock_tess}),
+        ):
+            ocr_mod.read_meter_image(tmp.name)
+
+        # Verify --tessdata-dir was included in all pytesseract calls.
+        # config is always passed as a keyword argument in read_meter_image().
+        expected_fragment = f"--tessdata-dir {td_dir}"
+        for call in mock_tess.image_to_string.call_args_list:
+            config_arg = call.kwargs.get("config", "")
+            assert expected_fragment in str(config_arg), f"Missing tessdata-dir in call: {call}"
+
+        data_config = mock_tess.image_to_data.call_args.kwargs.get("config", "")
+        assert expected_fragment in str(data_config)
+
+    def test_bundled_tessdata_dir_exists(self) -> None:
+        """Test that the tessdata directory is shipped with the integration."""
+        from custom_components.gas_water_meter.ocr import _TESSDATA_DIR  # noqa: PLC0415
+
+        assert _TESSDATA_DIR.is_dir()
 
 
 class TestHeifAvailability:

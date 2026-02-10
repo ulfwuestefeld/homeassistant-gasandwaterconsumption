@@ -58,13 +58,19 @@ const TRANSLATIONS = {
     open: "open",
     edit_price_title: "Edit price",
     confirm_delete_price: "Really delete this price?",
-    gas_params_title: "Gas conversion factors",
+    gas_params_title: "Default gas conversion factors",
+    gas_params_description: "These defaults are used when creating new prices.",
     calorific_value_label: "Calorific value (kWh/m\u00b3)",
     calorific_value_placeholder: "e.g. 11.465",
     condition_factor_label: "Condition factor",
     condition_factor_placeholder: "e.g. 0.9684",
-    gas_params_save: "Save conversion factors",
-    gas_params_saved: "Conversion factors saved.",
+    gas_params_save: "Save defaults",
+    gas_params_saved: "Default conversion factors saved.",
+    col_calorific: "kWh/m\u00b3",
+    col_condition: "Factor",
+    base_fee_label: "Annual base fee",
+    base_fee_placeholder: "e.g. 120.00",
+    col_base_fee: "Base fee/a",
     chart_title: "Monthly consumption",
     chart_min_readings: "At least 2 readings are required for a chart.",
     chart_consumption: "Consumption (m\u00b3)",
@@ -130,13 +136,19 @@ const TRANSLATIONS = {
     open: "offen",
     edit_price_title: "Preis bearbeiten",
     confirm_delete_price: "Preis wirklich l\u00f6schen?",
-    gas_params_title: "Gas-Umrechnungsfaktoren",
+    gas_params_title: "Standard-Umrechnungsfaktoren",
+    gas_params_description: "Diese Standardwerte werden beim Anlegen neuer Preise vorbelegt.",
     calorific_value_label: "Brennwert (kWh/m\u00b3)",
     calorific_value_placeholder: "z.B. 11,465",
     condition_factor_label: "Zustandszahl",
     condition_factor_placeholder: "z.B. 0,9684",
-    gas_params_save: "Umrechnungsfaktoren speichern",
-    gas_params_saved: "Umrechnungsfaktoren gespeichert.",
+    gas_params_save: "Standards speichern",
+    gas_params_saved: "Standard-Umrechnungsfaktoren gespeichert.",
+    col_calorific: "kWh/m\u00b3",
+    col_condition: "Zustandsz.",
+    base_fee_label: "Jahresgrundgeb\u00fchr",
+    base_fee_placeholder: "z.B. 120,00",
+    col_base_fee: "Grundgeb./a",
     chart_title: "Monatsverbrauch",
     chart_min_readings: "Mindestens 2 Ablesungen f\u00fcr eine Grafik erforderlich.",
     chart_consumption: "Verbrauch (m\u00b3)",
@@ -779,6 +791,19 @@ class GasWaterMeterPanel extends LitElement {
           <input type="date" id="price-from" .value=${new Date().toISOString().slice(0, 10)} />
           <label>${this._t("valid_to")}</label>
           <input type="date" id="price-to" />
+          ${this._isGas ? html`
+            <label>${this._t("calorific_value_label")}</label>
+            <input type="number" step="0.001" id="price-cv"
+              .value=${this._selectedMeter?.calorific_value ?? 11.465}
+              placeholder=${this._t("calorific_value_placeholder")} />
+            <label>${this._t("condition_factor_label")}</label>
+            <input type="number" step="0.0001" id="price-cf"
+              .value=${this._selectedMeter?.condition_factor ?? 0.9684}
+              placeholder=${this._t("condition_factor_placeholder")} />
+          ` : ""}
+          <label>${this._t("base_fee_label")} (${this._selectedMeter?.currency || "EUR"})</label>
+          <input type="number" step="0.01" id="price-base-fee"
+            placeholder=${this._t("base_fee_placeholder")} />
           <button class="primary" @click=${this._submitPrice}>${this._t("save")}</button>
         </div>
       </div>
@@ -795,6 +820,11 @@ class GasWaterMeterPanel extends LitElement {
                       <th>${this._t("col_valid_to")}</th>
                       <th>${colPrice}</th>
                       <th>${this._t("col_currency")}</th>
+                      ${this._isGas ? html`
+                        <th>${this._t("col_calorific")}</th>
+                        <th>${this._t("col_condition")}</th>
+                      ` : ""}
+                      <th>${this._t("col_base_fee")}</th>
                       <th>${this._t("col_actions")}</th>
                     </tr>
                   </thead>
@@ -809,6 +839,11 @@ class GasWaterMeterPanel extends LitElement {
                             <td>${p.valid_to || this._t("open")}</td>
                             <td>${p.price_per_unit.toFixed(4)}</td>
                             <td>${this._isGas ? "ct/kWh" : p.currency}</td>
+                            ${this._isGas ? html`
+                              <td>${p.calorific_value != null ? p.calorific_value : "-"}</td>
+                              <td>${p.condition_factor != null ? p.condition_factor : "-"}</td>
+                            ` : ""}
+                            <td>${p.base_fee != null ? p.base_fee.toFixed(2) : "-"}</td>
                             <td class="actions">
                               <button class="icon-btn" title=${this._t("edit")} @click=${() => this._startEditPrice(p)}>
                                 <ha-icon icon="mdi:pencil"></ha-icon>
@@ -834,6 +869,7 @@ class GasWaterMeterPanel extends LitElement {
     return html`
       <div class="card">
         <h2>${this._t("gas_params_title")}</h2>
+        <p class="hint">${this._t("gas_params_description")}</p>
         <div class="form">
           <label>${this._t("calorific_value_label")}</label>
           <input type="number" step="0.001" id="calorific-value"
@@ -876,6 +912,17 @@ class GasWaterMeterPanel extends LitElement {
           <input type="date" id="edit-price-from" .value=${p.valid_from} />
           <label>${this._t("valid_to")}</label>
           <input type="date" id="edit-price-to" .value=${p.valid_to || ""} />
+          ${this._isGas ? html`
+            <label>${this._t("calorific_value_label")}</label>
+            <input type="number" step="0.001" id="edit-price-cv"
+              .value=${p.calorific_value ?? this._selectedMeter?.calorific_value ?? 11.465} />
+            <label>${this._t("condition_factor_label")}</label>
+            <input type="number" step="0.0001" id="edit-price-cf"
+              .value=${p.condition_factor ?? this._selectedMeter?.condition_factor ?? 0.9684} />
+          ` : ""}
+          <label>${this._t("base_fee_label")} (${this._selectedMeter?.currency || "EUR"})</label>
+          <input type="number" step="0.01" id="edit-price-base-fee"
+            .value=${p.base_fee ?? ""} />
           <div class="dialog-actions">
             <button @click=${this._cancelEditPrice}>${this._t("cancel")}</button>
             <button class="primary" @click=${this._saveEditPrice}>${this._t("save")}</button>
@@ -893,14 +940,25 @@ class GasWaterMeterPanel extends LitElement {
     }
     const validFrom = this.shadowRoot.getElementById("price-from")?.value;
     const validTo = this.shadowRoot.getElementById("price-to")?.value || null;
-    await this._ws("add_price", {
+    const payload = {
       entry_id: this._selectedMeter.entry_id,
       price_per_unit: price,
       valid_from: validFrom,
       valid_to: validTo,
-    });
+    };
+    if (this._isGas) {
+      const cv = parseFloat(this.shadowRoot.getElementById("price-cv")?.value);
+      const cf = parseFloat(this.shadowRoot.getElementById("price-cf")?.value);
+      if (!isNaN(cv)) payload.calorific_value = cv;
+      if (!isNaN(cf)) payload.condition_factor = cf;
+    }
+    const baseFee = parseFloat(this.shadowRoot.getElementById("price-base-fee")?.value);
+    if (!isNaN(baseFee)) payload.base_fee = baseFee;
+    await this._ws("add_price", payload);
     this.shadowRoot.getElementById("price-value").value = "";
     this.shadowRoot.getElementById("price-to").value = "";
+    const baseFeeEl = this.shadowRoot.getElementById("price-base-fee");
+    if (baseFeeEl) baseFeeEl.value = "";
     await this._loadData();
   }
 
@@ -914,12 +972,24 @@ class GasWaterMeterPanel extends LitElement {
     const price = parseFloat(this.shadowRoot.getElementById("edit-price-value")?.value);
     const from = this.shadowRoot.getElementById("edit-price-from")?.value;
     const to = this.shadowRoot.getElementById("edit-price-to")?.value || null;
-    await this._ws("update_price", {
+    const payload = {
       price_id: this._editPrice.id,
       price_per_unit: isNaN(price) ? undefined : price,
       valid_from: from,
       valid_to: to,
-    });
+    };
+    if (this._isGas) {
+      const cv = parseFloat(this.shadowRoot.getElementById("edit-price-cv")?.value);
+      const cf = parseFloat(this.shadowRoot.getElementById("edit-price-cf")?.value);
+      if (!isNaN(cv)) payload.calorific_value = cv;
+      if (!isNaN(cf)) payload.condition_factor = cf;
+    }
+    const editBaseFee = this.shadowRoot.getElementById("edit-price-base-fee")?.value;
+    if (editBaseFee !== "" && editBaseFee != null) {
+      const bf = parseFloat(editBaseFee);
+      payload.base_fee = isNaN(bf) ? null : bf;
+    }
+    await this._ws("update_price", payload);
     this._editPrice = null;
     await this._loadData();
   }
@@ -1507,6 +1577,11 @@ class GasWaterMeterPanel extends LitElement {
     .empty {
       color: var(--secondary-text-color, #757575);
       font-style: italic;
+    }
+    .hint {
+      color: var(--secondary-text-color, #757575);
+      font-size: 13px;
+      margin: -8px 0 12px;
     }
     .preview {
       max-width: 200px;

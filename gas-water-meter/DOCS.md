@@ -22,7 +22,9 @@ This add-on installs the **Gas & Water Meter** custom integration into your Home
 - **Gas energy conversion** — configure calorific value (Brennwert) and condition factor (Zustandszahl) to convert m³ to kWh
 - **Consumption projection** — daily average, monthly, and yearly projections based on historical data
 - **Price tracking** — gas: ct/kWh, water: EUR/m³ with validity periods (valid_from / valid_to)
-- **Cost sensors** — costs computed from energy consumption (gas: kWh × ct/kWh) or volume (water: m³ × EUR/m³)
+- **Annual base fee** — optional per-price base fee (Jahresgrundgebühr) that is pro-rated and included in all cost projections
+- **Gas conversion factors per price** — calorific value and condition factor stored per price entry for period-accurate cost calculations
+- **Cost sensors** — costs computed from energy consumption (gas: kWh × ct/kWh) or volume (water: m³ × EUR/m³), including pro-rated annual base fee
 - **SQLite storage** — persistent data storage using SQLite (automatic migration from earlier versions)
 - **Full i18n** — English and German translations
 
@@ -40,9 +42,10 @@ This add-on installs the **Gas & Water Meter** custom integration into your Home
 | Monthly projection | Projected monthly consumption (m³) | x | x |
 | Yearly projection | Projected yearly consumption (m³) | x | x |
 | Current price | Active price (gas: ct/kWh, water: EUR/m³) | x | x |
-| Last period cost | Cost for the last consumption period | x | x |
-| Monthly projected cost | Projected monthly cost | x | x |
-| Yearly projected cost | Projected yearly cost | x | x |
+| Annual base fee | Annual base fee from active price entry | x | x |
+| Last period cost | Cost for the last consumption period (incl. pro-rated base fee) | x | x |
+| Monthly projected cost | Projected monthly cost (incl. pro-rated base fee) | x | x |
+| Yearly projected cost | Projected yearly cost (incl. annual base fee) | x | x |
 
 ## Installation
 
@@ -97,22 +100,26 @@ data:
 
 ### Setting a Price
 
-For gas (ct/kWh):
+For gas (ct/kWh) with conversion factors and base fee:
 ```yaml
 service: gas_water_meter.set_price
 data:
   config_entry_id: "<your_entry_id>"
   price_per_unit: 8.45
   valid_from: "2026-01-01"
+  calorific_value: 11.2        # optional: Brennwert (kWh/m³)
+  condition_factor: 0.9524     # optional: Zustandszahl
+  base_fee: 120.00             # optional: Jahresgrundgebühr (EUR/year)
 ```
 
-For water (EUR/m³):
+For water (EUR/m³) with base fee:
 ```yaml
 service: gas_water_meter.set_price
 data:
   config_entry_id: "<your_entry_id>"
   price_per_unit: 1.85
   valid_from: "2026-01-01"
+  base_fee: 60.00              # optional: Jahresgrundgebühr (EUR/year)
 ```
 
 ### Reading a Meter Image (OCR only)

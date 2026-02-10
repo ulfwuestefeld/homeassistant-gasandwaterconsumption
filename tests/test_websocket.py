@@ -720,6 +720,127 @@ async def test_get_statistics_empty(hass: HomeAssistant, mock_db_empty: MeterDat
 # ===================================================================
 
 
+async def test_add_price_with_base_fee(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Test that ws_add_price stores base_fee when provided."""
+    _setup_db(hass, mock_db_empty)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=MOCK_WATER_CONFIG,
+        title="Water Meter",
+        unique_id="gas_water_meter_water_WAT-67890",
+    )
+    entry.add_to_hass(hass)
+
+    conn = MockWSConnection()
+    await _ws_add_price(
+        hass,
+        conn,
+        {
+            "id": 1,
+            "type": f"{DOMAIN}/add_price",
+            "entry_id": entry.entry_id,
+            "price_per_unit": 2.50,
+            "valid_from": "2026-01-01",
+            "base_fee": 120.0,
+        },
+    )
+    assert conn.last_result is not None
+    assert "id" in conn.last_result
+
+    prices = await mock_db_empty.async_get_prices(entry.entry_id)
+    assert len(prices) == 1
+    assert prices[0]["base_fee"] == 120.0
+
+
+async def test_add_price_without_base_fee(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Test that ws_add_price stores NULL base_fee when not provided."""
+    _setup_db(hass, mock_db_empty)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=MOCK_WATER_CONFIG,
+        title="Water Meter",
+        unique_id="gas_water_meter_water_WAT-67890",
+    )
+    entry.add_to_hass(hass)
+
+    conn = MockWSConnection()
+    await _ws_add_price(
+        hass,
+        conn,
+        {
+            "id": 1,
+            "type": f"{DOMAIN}/add_price",
+            "entry_id": entry.entry_id,
+            "price_per_unit": 2.50,
+            "valid_from": "2026-01-01",
+        },
+    )
+    prices = await mock_db_empty.async_get_prices(entry.entry_id)
+    assert prices[0]["base_fee"] is None
+
+
+async def test_update_price_with_base_fee(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Test that ws_update_price can set and clear base_fee."""
+    _setup_db(hass, mock_db_empty)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=MOCK_WATER_CONFIG,
+        title="Water Meter",
+        unique_id="gas_water_meter_water_WAT-67890",
+    )
+    entry.add_to_hass(hass)
+
+    # Add a price first
+    conn = MockWSConnection()
+    await _ws_add_price(
+        hass,
+        conn,
+        {
+            "id": 1,
+            "type": f"{DOMAIN}/add_price",
+            "entry_id": entry.entry_id,
+            "price_per_unit": 2.50,
+            "valid_from": "2026-01-01",
+        },
+    )
+    prices = await mock_db_empty.async_get_prices(entry.entry_id)
+    price_id = prices[0]["id"]
+
+    # Update with base_fee
+    conn = MockWSConnection()
+    await _ws_update_price(
+        hass,
+        conn,
+        {
+            "id": 2,
+            "type": f"{DOMAIN}/update_price",
+            "price_id": price_id,
+            "base_fee": 96.0,
+        },
+    )
+    assert conn.last_result == {"success": True}
+
+    prices = await mock_db_empty.async_get_prices(entry.entry_id)
+    assert prices[0]["base_fee"] == 96.0
+
+    # Clear base_fee
+    conn = MockWSConnection()
+    await _ws_update_price(
+        hass,
+        conn,
+        {
+            "id": 3,
+            "type": f"{DOMAIN}/update_price",
+            "price_id": price_id,
+            "base_fee": None,
+        },
+    )
+    assert conn.last_result == {"success": True}
+
+    prices = await mock_db_empty.async_get_prices(entry.entry_id)
+    assert prices[0]["base_fee"] is None
+
+
 async def test_update_gas_params(hass: HomeAssistant) -> None:
     """Test that update_gas_params updates calorific_value and condition_factor."""
     entry = MockConfigEntry(

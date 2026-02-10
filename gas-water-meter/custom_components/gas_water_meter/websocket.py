@@ -249,6 +249,9 @@ async def ws_get_prices(
         vol.Required("valid_from"): str,
         vol.Optional("valid_to"): vol.Any(str, None),
         vol.Optional("currency"): str,
+        vol.Optional("calorific_value"): vol.Coerce(float),
+        vol.Optional("condition_factor"): vol.Coerce(float),
+        vol.Optional("base_fee"): vol.Coerce(float),
     }
 )
 @websocket_api.async_response
@@ -260,12 +263,21 @@ async def ws_add_price(
     """Add a new price."""
     db = _get_db(hass)
     entry_id = msg["entry_id"]
+    entry = hass.config_entries.async_get_entry(entry_id)
 
     # Default currency from config entry
     currency = msg.get("currency")
     if currency is None:
-        entry = hass.config_entries.async_get_entry(entry_id)
         currency = entry.data.get(CONF_CURRENCY, "EUR") if entry else "EUR"
+
+    # Default gas conversion factors from config entry when not provided
+    calorific_value = msg.get("calorific_value")
+    condition_factor = msg.get("condition_factor")
+    if entry is not None and entry.data.get(CONF_METER_TYPE) == METER_TYPE_GAS:
+        if calorific_value is None:
+            calorific_value = entry.data.get(CONF_CALORIFIC_VALUE, DEFAULT_CALORIFIC_VALUE)
+        if condition_factor is None:
+            condition_factor = entry.data.get(CONF_CONDITION_FACTOR, DEFAULT_CONDITION_FACTOR)
 
     price_id = await db.async_add_price(
         entry_id=entry_id,
@@ -273,6 +285,9 @@ async def ws_add_price(
         valid_from=msg["valid_from"],
         valid_to=msg.get("valid_to"),
         currency=currency,
+        calorific_value=calorific_value,
+        condition_factor=condition_factor,
+        base_fee=msg.get("base_fee"),
     )
 
     await _refresh_coordinator(hass, entry_id)
@@ -287,6 +302,9 @@ async def ws_add_price(
         vol.Optional("valid_from"): str,
         vol.Optional("valid_to"): vol.Any(str, None),
         vol.Optional("currency"): str,
+        vol.Optional("calorific_value"): vol.Any(vol.Coerce(float), None),
+        vol.Optional("condition_factor"): vol.Any(vol.Coerce(float), None),
+        vol.Optional("base_fee"): vol.Any(vol.Coerce(float), None),
     }
 )
 @websocket_api.async_response
@@ -298,7 +316,8 @@ async def ws_update_price(
     """Update an existing price."""
     db = _get_db(hass)
     kwargs: dict[str, Any] = {}
-    for key in ("price_per_unit", "valid_from", "valid_to", "currency"):
+    for key in ("price_per_unit", "valid_from", "valid_to", "currency",
+                "calorific_value", "condition_factor", "base_fee"):
         if key in msg:
             kwargs[key] = msg[key]
 
@@ -406,7 +425,13 @@ async def ws_update_gas_params(
 
 
 async def _refresh_coordinator(hass: HomeAssistant, entry_id: str) -> None:
-    """Refresh the coordinator for one entry."""
+    """Refresh the coordinator for one entry.
+
+    Uses async_refresh() (not async_request_refresh()) so the data update
+    completes synchronously before the caller continues.  This ensures
+    sensors reflect the latest DB state immediately, which is critical for
+    the Energy Dashboard receiving up-to-date values.
+    """
     entry = hass.config_entries.async_get_entry(entry_id)
     if entry is None:
         _LOGGER.warning("Cannot refresh coordinator: entry %s not found", entry_id)
@@ -415,7 +440,7 @@ async def _refresh_coordinator(hass: HomeAssistant, entry_id: str) -> None:
     if coordinator is None:
         _LOGGER.warning("Cannot refresh coordinator: entry %s has no runtime_data", entry_id)
         return
-    await coordinator.async_request_refresh()
+    await coordinator.async_refresh()
 
 
 async def _refresh_all_coordinators(hass: HomeAssistant) -> None:
@@ -423,4 +448,4 @@ async def _refresh_all_coordinators(hass: HomeAssistant) -> None:
     for entry in hass.config_entries.async_entries(DOMAIN):
         coordinator = getattr(entry, "runtime_data", None)
         if coordinator is not None:
-            await coordinator.async_request_refresh()
+            await coordinator.async_refresh()

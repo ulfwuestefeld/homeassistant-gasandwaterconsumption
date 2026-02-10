@@ -2,7 +2,7 @@ ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
 # Install runtime dependencies
-RUN apk add --no-cache tesseract-ocr dos2unix libheif
+RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-eng tesseract-ocr-data-deu dos2unix libheif
 
 # Install build dependencies, pip packages, then clean up build deps
 RUN apk add --no-cache --virtual .build-deps \

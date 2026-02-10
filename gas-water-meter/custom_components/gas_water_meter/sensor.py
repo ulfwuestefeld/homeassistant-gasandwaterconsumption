@@ -171,6 +171,16 @@ SENSOR_DESCRIPTIONS: tuple[MeterSensorDescription, ...] = (
         suggested_display_precision=2,
         value_fn=lambda data: data.yearly_projected_cost,
     ),
+    # --- Base Fee Sensor ---
+    MeterSensorDescription(
+        key="current_base_fee",
+        translation_key="current_base_fee",
+        device_class=SensorDeviceClass.MONETARY,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        dynamic_unit=True,
+        suggested_display_precision=2,
+        value_fn=lambda data: data.current_base_fee,
+    ),
 )
 
 
@@ -230,7 +240,7 @@ class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
             name=f"{device_prefix} - {meter_name}",
             manufacturer="Manual Entry",
             model=f"{meter_type.capitalize()} Meter",
-            sw_version="0.1.5",
+            sw_version="0.1.6",
         )
 
     @property

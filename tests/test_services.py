@@ -408,6 +408,49 @@ async def test_read_meter_image_returns_response(hass: HomeAssistant, mock_tesse
     assert result["exif_datetime"] == "2026-02-08T12:00:00"
 
 
+async def test_set_price_with_base_fee(hass: HomeAssistant) -> None:
+    """Test setting a price with base_fee via service."""
+    entry, db = await _setup_entry(hass)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "set_price",
+        {
+            "config_entry_id": entry.entry_id,
+            "price_per_unit": 2.10,
+            "valid_from": "2026-03-01",
+            "base_fee": 120.0,
+        },
+        blocking=True,
+    )
+
+    prices = await db.async_get_prices("test_entry")
+    new_price = [p for p in prices if p["price_per_unit"] == 2.10]
+    assert len(new_price) == 1
+    assert new_price[0]["base_fee"] == 120.0
+
+
+async def test_set_price_without_base_fee(hass: HomeAssistant) -> None:
+    """Test setting a price without base_fee via service stores NULL."""
+    entry, db = await _setup_entry(hass)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "set_price",
+        {
+            "config_entry_id": entry.entry_id,
+            "price_per_unit": 2.20,
+            "valid_from": "2026-04-01",
+        },
+        blocking=True,
+    )
+
+    prices = await db.async_get_prices("test_entry")
+    new_price = [p for p in prices if p["price_per_unit"] == 2.20]
+    assert len(new_price) == 1
+    assert new_price[0]["base_fee"] is None
+
+
 async def test_service_invalid_entry_id(hass: HomeAssistant) -> None:
     """Test that services reject an invalid config_entry_id."""
     _entry, _db = await _setup_entry(hass)

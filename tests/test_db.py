@@ -390,6 +390,122 @@ async def test_get_first_reading_for_meter_none(mock_db_empty: MeterDatabase) ->
     assert result is None
 
 
+async def test_schema_migration_v2_to_v3_adds_base_fee(hass: HomeAssistant) -> None:
+    """Test that schema migration v2→v3 adds the base_fee column."""
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".db")
+    os.close(tmp_fd)
+
+    # Create a DB at schema v2 (without base_fee column)
+    import aiosqlite
+
+    async with aiosqlite.connect(tmp_path) as conn:
+        await conn.execute(
+            """CREATE TABLE IF NOT EXISTS schema_meta (
+                key TEXT PRIMARY KEY, value TEXT NOT NULL
+            )"""
+        )
+        await conn.execute(
+            "INSERT INTO schema_meta (key, value) VALUES ('schema_version', '2')"
+        )
+        await conn.execute(
+            """CREATE TABLE IF NOT EXISTS prices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_id TEXT NOT NULL,
+                price_per_unit REAL NOT NULL,
+                valid_from TEXT NOT NULL,
+                valid_to TEXT,
+                currency TEXT NOT NULL,
+                calorific_value REAL,
+                condition_factor REAL,
+                created_at TEXT DEFAULT (datetime('now'))
+            )"""
+        )
+        await conn.execute(
+            """CREATE TABLE IF NOT EXISTS readings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_id TEXT NOT NULL,
+                meter_number TEXT NOT NULL,
+                reading REAL NOT NULL,
+                timestamp TEXT NOT NULL,
+                image_path TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            )"""
+        )
+        await conn.commit()
+
+    # Open with MeterDatabase — migration should add base_fee
+    with patch.object(hass.config, "path", return_value=tmp_path):
+        db = MeterDatabase(hass)
+        await db.async_setup()
+
+    # Verify column exists by inserting a price with base_fee
+    pid = await db.async_add_price(
+        entry_id="test",
+        price_per_unit=1.50,
+        valid_from="2026-01-01",
+        currency="EUR",
+        base_fee=120.0,
+    )
+    prices = await db.async_get_prices("test")
+    assert len(prices) == 1
+    assert prices[0]["base_fee"] == 120.0
+
+    await db.async_close()
+    os.unlink(tmp_path)
+
+
+async def test_add_price_with_base_fee(mock_db_empty: MeterDatabase) -> None:
+    """Test that async_add_price stores the base_fee value."""
+    db = mock_db_empty
+    pid = await db.async_add_price(
+        entry_id="test",
+        price_per_unit=1.85,
+        valid_from="2026-01-01",
+        currency="EUR",
+        base_fee=96.0,
+    )
+    prices = await db.async_get_prices("test")
+    assert len(prices) == 1
+    assert prices[0]["base_fee"] == 96.0
+
+
+async def test_add_price_without_base_fee(mock_db_empty: MeterDatabase) -> None:
+    """Test that async_add_price stores NULL when base_fee is omitted."""
+    db = mock_db_empty
+    await db.async_add_price(
+        entry_id="test",
+        price_per_unit=1.85,
+        valid_from="2026-01-01",
+        currency="EUR",
+    )
+    prices = await db.async_get_prices("test")
+    assert len(prices) == 1
+    assert prices[0]["base_fee"] is None
+
+
+async def test_update_price_with_base_fee(mock_db_empty: MeterDatabase) -> None:
+    """Test that async_update_price can set and clear base_fee."""
+    db = mock_db_empty
+    pid = await db.async_add_price(
+        entry_id="test",
+        price_per_unit=1.85,
+        valid_from="2026-01-01",
+        currency="EUR",
+    )
+
+    # Set base_fee
+    ok = await db.async_update_price(pid, base_fee=150.0)
+    assert ok is True
+    prices = await db.async_get_prices("test")
+    assert prices[0]["base_fee"] == 150.0
+
+    # Clear base_fee (set to None)
+    ok = await db.async_update_price(pid, base_fee=None)
+    assert ok is True
+    prices = await db.async_get_prices("test")
+    assert prices[0]["base_fee"] is None
+
+
 async def test_consumption_stats_meter_change(mock_db_empty: MeterDatabase) -> None:
     """Test async_get_consumption_stats resets consumption on meter number change."""
     db = mock_db_empty

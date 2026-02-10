@@ -97,6 +97,9 @@
             },
             "yearly_projected_cost": {
                 "name": "Yearly projected cost"
+            },
+            "current_base_fee": {
+                "name": "Annual base fee"
             }
         }
     },
@@ -142,6 +145,18 @@
                 "valid_from": {
                     "name": "Valid from",
                     "description": "Date from which this price is effective. Defaults to today."
+                },
+                "calorific_value": {
+                    "name": "Calorific value",
+                    "description": "Gas calorific value in kWh/m\u00b3 (Brennwert). If omitted, the config entry default is used."
+                },
+                "condition_factor": {
+                    "name": "Condition factor",
+                    "description": "Gas condition factor (Zustandszahl). If omitted, the config entry default is used."
+                },
+                "base_fee": {
+                    "name": "Annual base fee",
+                    "description": "Annual base fee (Jahresgrundgebühr) in the meter's currency. Pro-rated for periods shorter than one year."
                 }
             }
         },

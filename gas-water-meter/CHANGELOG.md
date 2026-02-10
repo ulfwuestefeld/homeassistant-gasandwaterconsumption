@@ -5,6 +5,32 @@ All notable changes to the Gas & Water Meter add-on will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-02-09
+
+### Added
+
+- Annual base fee (Jahresgrundgebühr) per price entry — pro-rated into all cost projections
+- Gas conversion factors (Brennwert, Zustandszahl) stored per price entry for period-accurate cost calculations
+- New sensor: current_base_fee (annual base fee from active price, MONETARY/DIAGNOSTIC)
+- base_fee input in sidebar panel price form, edit dialog, and price history table
+- base_fee parameter in set_price service and WebSocket add_price/update_price
+
+### Changed
+
+- DB schema version 2 → 3 (adds base_fee column to prices table)
+- Gas meters create 14 sensors (was 13); water meters create 13 (was 12)
+- Cost calculations use conversion factors from the period-specific price entry
+
+## [0.1.6] - 2026-02-09
+
+### Added
+
+- Tesseract training data for getting better result on ocr for gas and water meters (see tessdata/README.md)
+
+### Fixed
+
+- lazy sensor submission
+
 ## [0.1.5] - 2026-02-09
 
 ### Fixed

@@ -47,6 +47,30 @@ set_price:
       required: false
       selector:
         date:
+    calorific_value:
+      required: false
+      example: 11.465
+      selector:
+        number:
+          min: 0
+          step: 0.001
+          mode: box
+    condition_factor:
+      required: false
+      example: 0.9684
+      selector:
+        number:
+          min: 0
+          step: 0.0001
+          mode: box
+    base_fee:
+      required: false
+      example: 120.00
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
 
 read_meter_image:
   fields:

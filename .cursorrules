@@ -17,7 +17,7 @@ You use mocks for mocking external systems.
 - **Domain**: `gas_water_meter`
 - **Type**: Home Assistant Add-on containing a custom integration (service, calculated)
 - **Distribution**: Private GitHub repository, installed via SSH deploy key as add-on repository
-- **Version**: 0.1.5
+- **Version**: 0.1.7
 - **Python**: >= 3.12
 - **Pattern**: Async-first, config-entry-based, coordinator pattern (no polling)
 - **HA Skill**: Use the `homeassistant-development` Cursor skill for HA patterns
@@ -47,7 +47,7 @@ You use mocks for mocking external systems.
 │           ├── icons.json           # Entity icons
 │           ├── manifest.json        # Integration metadata
 │           ├── ocr.py               # Tesseract OCR wrapper + EXIF extraction
-│           ├── sensor.py            # 13 sensor entities (gas) / 12 (water)
+│           ├── sensor.py            # 14 sensor entities (gas) / 13 (water)
 │           ├── services.yaml        # Service definitions
 │           ├── store.py             # Legacy JSON storage (migration only)
 │           ├── strings.json         # Translation source
@@ -62,7 +62,7 @@ You use mocks for mocking external systems.
 │   │   └── gas-water-meter-panel.js # LitElement sidebar panel
 │   └── test/
 │       └── gas-water-meter-panel.test.js # Frontend component tests
-├── tests/                           # Python unit tests (pytest, ~227 tests)
+├── tests/                           # Python unit tests (pytest, ~246 tests)
 ├── .github/workflows/tests.yml      # CI: lint + test
 ├── pyproject.toml                   # Python project config (pythonpath: gas-water-meter)
 └── requirements_test.txt            # Test dependencies
@@ -71,20 +71,22 @@ You use mocks for mocking external systems.
 ## Key Design
 
 - Each config entry = one physical meter (gas or water)
-- Gas meters: 13 sensors (12 common + energy_consumption in kWh); Water meters: 12 sensors
+- Gas meters: 14 sensors (12 common + energy_consumption + current_base_fee); Water meters: 13 sensors (12 common + current_base_fee)
 - Gas energy conversion: kWh = m³ × Brennwert (calorific_value) × Zustandszahl (condition_factor)
 - Gas pricing in ct/kWh: cost = kWh × price / 100 (EUR); Water pricing in EUR/m³: cost = m³ × price
+- **Gas conversion factors per price**: calorific_value and condition_factor are stored per price entry (not globally); config-entry defaults serve as fallback for legacy data without per-price factors
+- **Annual base fee (Jahresgrundgebühr)**: optional `base_fee` per price entry; pro-rated in cost calculations (by days for `last_period_cost`, by ~30.44 days for monthly, full fee for yearly); stored as `base_fee REAL` in prices table
 - Two-step config flow for gas (step 1: base, step 2: gas_params with calorific_value + condition_factor)
 - **Meter number change detection**: when meter_number changes between consecutive readings, consumption resets (no delta); projections use only readings from the current meter number (via `async_get_first_reading_for_meter`)
 - Services: record_reading, set_price, read_meter_image
-- OCR: Tesseract via pytesseract (optional; auto-installed on first startup via ensure_tesseract in ocr.py using apk/apt-get)
+- OCR: Tesseract via pytesseract (optional; auto-installed on first startup via ensure_tesseract in ocr.py using apk/apt-get); custom tessdata directory for training data
 - EXIF: Automatic timestamp extraction from photos
-- Storage: SQLite via aiosqlite (db.py); legacy JSON store (store.py) kept for migration only
+- Storage: SQLite via aiosqlite (db.py, schema version 3); legacy JSON store (store.py) kept for migration only
 - Frontend: Sidebar panel built with Lit, bundled via Rollup into frontend/entrypoint.js; full i18n via TRANSLATIONS dict + hass.language (en, de); mobile responsive (card layout on narrow screens); tested with Web Test Runner + @open-wc/testing (~27 browser-based component tests)
 - Chart: Chart.js for monthly consumption visualization (proportional aggregation by calendar month)
 - WebSocket API: Custom commands in websocket.py for frontend-backend CRUD (readings, prices, meters, statistics, gas_params)
 - REST API: http.py provides /api/gas_water_meter/upload_image for multipart photo uploads (max 20 MB, 21 MP)
-- Prices: Support validity periods (valid_from, optional valid_to)
+- Prices: Support validity periods (valid_from, optional valid_to); gas prices include calorific_value, condition_factor; all prices support optional base_fee
 - Energy Dashboard: reading sensor with state_class TOTAL_INCREASING for direct use; additionally, external statistics with correct reading timestamps (statistic_id: gas_water_meter:<entry_id>) are imported by the coordinator for accurate historical attribution
 - Gas vs Water: Distinguished by device_class, icons, device name, persistence, pricing model
 - Add-on copies integration files to /config/custom_components/ on startup

@@ -5,6 +5,30 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-02-09
+
+### Added
+
+- **Annual base fee (Jahresgrundgebühr)** — optional per-price base fee that is pro-rated and added to all cost calculations: `last_period_cost` (prorated by days), `monthly_projected_cost` (prorated for one month), `yearly_projected_cost` (full fee); stored in the `prices` table as `base_fee REAL`
+- **Gas conversion factors per price entry** — calorific value (Brennwert) and condition factor (Zustandszahl) are now stored per price entry instead of globally, so historical cost calculations use the factors valid at that time; config-entry defaults serve as fallback for legacy data
+- **New sensor `current_base_fee`** — shows the annual base fee from the currently active price entry (MONETARY, DIAGNOSTIC)
+- Base fee input in sidebar panel price form and edit dialog (for all meter types)
+- Base fee column in price history table
+- `base_fee` parameter in `set_price` service and WebSocket `add_price`/`update_price` commands
+
+### Changed
+
+- DB schema version 2 → 3 (automatic migration adds `base_fee` column to `prices` table)
+- Gas meters now create 14 sensors (was 13); water meters create 13 sensors (was 12)
+- Cost calculations use conversion factors from the period-specific price entry (not just the current price)
+- Python test count increased from ~227 to 246
+
+## [0.1.6] - 2026-02-09
+
+### Added
+
+- Tesseract training data for getting better result on ocr for gas and water meters (see tessdata/README.md)
+
 ## [0.1.5] - 2026-02-09
 
 ### Fixed

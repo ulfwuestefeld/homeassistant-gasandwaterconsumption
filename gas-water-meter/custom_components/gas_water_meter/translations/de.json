@@ -97,6 +97,9 @@
             },
             "yearly_projected_cost": {
                 "name": "J\u00e4hrliche Kostenprognose"
+            },
+            "current_base_fee": {
+                "name": "Jahresgrundgeb\u00fchr"
             }
         }
     },
@@ -142,6 +145,18 @@
                 "valid_from": {
                     "name": "G\u00fcltig ab",
                     "description": "Datum, ab dem dieser Preis gilt. Standard ist heute."
+                },
+                "calorific_value": {
+                    "name": "Brennwert",
+                    "description": "Gas-Brennwert in kWh/m\u00b3. Wird dieser nicht angegeben, wird der Standardwert aus der Konfiguration verwendet."
+                },
+                "condition_factor": {
+                    "name": "Zustandszahl",
+                    "description": "Gas-Zustandszahl. Wird diese nicht angegeben, wird der Standardwert aus der Konfiguration verwendet."
+                },
+                "base_fee": {
+                    "name": "Jahresgrundgebühr",
+                    "description": "Jährliche Grundgebühr in der Zähler-Währung. Wird bei Zeiträumen unter einem Jahr anteilig berechnet."
                 }
             }
         },

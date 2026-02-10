@@ -18,7 +18,9 @@ A Home Assistant add-on that provides a custom integration for manually recordin
 - **Gas energy conversion** — configure calorific value (Brennwert) and condition factor (Zustandszahl) to convert m³ to kWh
 - **Consumption projection** — daily average, monthly, and yearly projections based on historical data
 - **Price tracking** — gas: ct/kWh, water: EUR/m³ with validity periods (valid_from / valid_to)
-- **Cost sensors** — costs computed from energy consumption (gas: kWh × ct/kWh) or volume (water: m³ × EUR/m³)
+- **Annual base fee** — optional per-price base fee (Jahresgrundgebühr) that is pro-rated and included in all cost projections
+- **Gas conversion factors per price** — calorific value and condition factor stored per price entry for period-accurate cost calculations
+- **Cost sensors** — costs computed from energy consumption (gas: kWh × ct/kWh) or volume (water: m³ × EUR/m³), including pro-rated annual base fee
 - **SQLite storage** — persistent data storage using SQLite via aiosqlite
 - **Full i18n** — English and German translations
 
@@ -36,26 +38,12 @@ A Home Assistant add-on that provides a custom integration for manually recordin
 | Monthly projection | Projected monthly consumption (m³) | x | x |
 | Yearly projection | Projected yearly consumption (m³) | x | x |
 | Current price | Active price (gas: ct/kWh, water: EUR/m³) | x | x |
-| Last period cost | Cost for the last consumption period | x | x |
-| Monthly projected cost | Projected monthly cost | x | x |
-| Yearly projected cost | Projected yearly cost | x | x |
+| Annual base fee | Annual base fee from active price entry | x | x |
+| Last period cost | Cost for the last consumption period (incl. pro-rated base fee) | x | x |
+| Monthly projected cost | Projected monthly cost (incl. pro-rated base fee) | x | x |
+| Yearly projected cost | Projected yearly cost (incl. annual base fee) | x | x |
 
 ## Installation
-
-### Prerequisites
-
-This is a **private repository**. To use it as an add-on repository in Home Assistant, you need an SSH deploy key configured:
-
-1. Add the deploy key's **private key** to your Home Assistant instance at `/ssl/` or via the SSH add-on
-2. Configure SSH in Home Assistant to use the deploy key for `github.com`
-
-### Adding the Add-on Repository
-
-1. In Home Assistant, go to **Settings** → **Add-ons** → **Add-on Store**
-2. Click the **⋮** menu (top right) → **Repositories**
-3. Add the repository URL: `ssh://git@github.com/ulfwuestefeld/gasandwater.git`
-4. Click **Add** → **Close**
-5. Find **Gas & Water Meter** in the add-on store and click **Install**
 
 ### Activating the Integration
 
@@ -111,22 +99,26 @@ data:
 
 ### Setting a Price
 
-For gas (ct/kWh):
+For gas (ct/kWh) with conversion factors and base fee:
 ```yaml
 service: gas_water_meter.set_price
 data:
   config_entry_id: "<your_entry_id>"
   price_per_unit: 8.45
   valid_from: "2026-01-01"
+  calorific_value: 11.2        # optional: Brennwert (kWh/m³)
+  condition_factor: 0.9524     # optional: Zustandszahl
+  base_fee: 120.00             # optional: Jahresgrundgebühr (EUR/year)
 ```
 
-For water (EUR/m³):
+For water (EUR/m³) with base fee:
 ```yaml
 service: gas_water_meter.set_price
 data:
   config_entry_id: "<your_entry_id>"
   price_per_unit: 1.85
   valid_from: "2026-01-01"
+  base_fee: 60.00              # optional: Jahresgrundgebühr (EUR/year)
 ```
 
 ### Reading a Meter Image (OCR only)
@@ -180,11 +172,11 @@ When a new version is available:
 │           ├── http.py          # REST API for image uploads
 │           ├── websocket.py     # WebSocket API for frontend
 │           ├── ocr.py           # Tesseract OCR wrapper + EXIF + HEIC/HEIF
-│           ├── sensor.py        # 13 sensor entities (gas) / 12 (water)
+│           ├── sensor.py        # 14 sensor entities (gas) / 13 (water)
 │           ├── store.py         # Legacy JSON storage (migration only)
 │           └── frontend/        # Bundled panel JS (Lit + Chart.js)
 ├── frontend-src/                # Frontend source (Lit, Chart.js, Rollup)
-├── tests/                       # Python unit tests (~227 tests)
+├── tests/                       # Python unit tests (~246 tests)
 ├── .github/workflows/           # CI (lint + test)
 ├── pyproject.toml               # Python project config
 └── requirements_test.txt        # Test dependencies
@@ -227,4 +219,4 @@ MIT License. See [FOSS.md](FOSS.md) for third-party licenses.
 
 ## Version
 
-0.1.5 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.1.7 — See [CHANGELOG.md](CHANGELOG.md) for details.

@@ -17,9 +17,15 @@ from homeassistant.helpers import config_validation as cv
 
 from . import ocr as _ocr_module
 from .const import (
+    CONF_CALORIFIC_VALUE,
+    CONF_CONDITION_FACTOR,
     CONF_CURRENCY,
     CONF_METER_NUMBER,
+    CONF_METER_TYPE,
+    DEFAULT_CALORIFIC_VALUE,
+    DEFAULT_CONDITION_FACTOR,
     DOMAIN,
+    METER_TYPE_GAS,
     PLATFORMS,
 )
 from .coordinator import MeterCoordinator
@@ -43,6 +49,9 @@ ATTR_TIMESTAMP = "timestamp"
 ATTR_IMAGE = "image"
 ATTR_PRICE_PER_UNIT = "price_per_unit"
 ATTR_VALID_FROM = "valid_from"
+ATTR_CALORIFIC_VALUE = "calorific_value"
+ATTR_CONDITION_FACTOR = "condition_factor"
+ATTR_BASE_FEE = "base_fee"
 ATTR_CONFIG_ENTRY_ID = "config_entry_id"
 
 SCHEMA_RECORD_READING = vol.Schema(
@@ -60,6 +69,9 @@ SCHEMA_SET_PRICE = vol.Schema(
         vol.Required(ATTR_CONFIG_ENTRY_ID): cv.string,
         vol.Required(ATTR_PRICE_PER_UNIT): vol.Coerce(float),
         vol.Optional(ATTR_VALID_FROM): cv.string,
+        vol.Optional(ATTR_CALORIFIC_VALUE): vol.Coerce(float),
+        vol.Optional(ATTR_CONDITION_FACTOR): vol.Coerce(float),
+        vol.Optional(ATTR_BASE_FEE): vol.Coerce(float),
     }
 )
 
@@ -259,8 +271,8 @@ async def _handle_record_reading(hass: HomeAssistant, call: ServiceCall) -> None
         image_path=saved_image_path,
     )
 
-    # Refresh coordinator
-    await coordinator.async_request_refresh()
+    # Refresh coordinator immediately so sensors reflect the new reading
+    await coordinator.async_refresh()
 
 
 async def _save_and_validate_image(
@@ -316,21 +328,35 @@ async def _handle_set_price(hass: HomeAssistant, call: ServiceCall) -> None:
     if valid_from is None:
         valid_from = datetime.now(tz=UTC).strftime("%Y-%m-%d")
 
-    # Get currency from config entry
+    # Get currency and gas conversion factor defaults from config entry
     entry = hass.config_entries.async_get_entry(entry_id)
     currency = "EUR"
+    calorific_value: float | None = call.data.get(ATTR_CALORIFIC_VALUE)
+    condition_factor: float | None = call.data.get(ATTR_CONDITION_FACTOR)
+
     if entry is not None:
         currency = entry.data.get(CONF_CURRENCY, "EUR")
+        # For gas meters, default conversion factors from config when not provided
+        if entry.data.get(CONF_METER_TYPE) == METER_TYPE_GAS:
+            if calorific_value is None:
+                calorific_value = entry.data.get(CONF_CALORIFIC_VALUE, DEFAULT_CALORIFIC_VALUE)
+            if condition_factor is None:
+                condition_factor = entry.data.get(CONF_CONDITION_FACTOR, DEFAULT_CONDITION_FACTOR)
+
+    base_fee: float | None = call.data.get(ATTR_BASE_FEE)
 
     await db.async_add_price(
         entry_id=entry_id,
         price_per_unit=price,
         valid_from=valid_from,
         currency=currency,
+        calorific_value=calorific_value,
+        condition_factor=condition_factor,
+        base_fee=base_fee,
     )
 
-    # Refresh coordinator
-    await coordinator.async_request_refresh()
+    # Refresh coordinator immediately so sensors reflect the new price
+    await coordinator.async_refresh()
 
 
 async def _handle_read_meter_image(hass: HomeAssistant, call: ServiceCall) -> dict[str, Any]:

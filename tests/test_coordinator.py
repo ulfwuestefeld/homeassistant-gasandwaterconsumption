@@ -1129,6 +1129,178 @@ async def test_statistics_negative_delta_ignored(hass: HomeAssistant, mock_db_em
         assert stats[2]["sum"] == 25.0
 
 
+async def test_base_fee_prorated_in_last_period_cost(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Test that base_fee is prorated and added to last_period_cost.
+
+    Formula: last_period_cost = consumption_cost + base_fee * days / DAYS_PER_YEAR
+    With: consumption 10 m³, price 5.0 EUR/m³, base_fee 365.25 EUR, 31 days
+    => water cost = 10 * 5 = 50.00
+    => prorated base fee = 365.25 * 31 / 365.25 = 31.00
+    => total = 81.00
+    """
+    db = mock_db_empty
+
+    for ts, val in [
+        ("2026-01-01T10:00:00+00:00", 100.0),
+        ("2026-02-01T10:00:00+00:00", 110.0),
+    ]:
+        await db.async_add_reading(entry_id="w1", meter_number="W-1", reading=val, timestamp=ts)
+
+    await db.async_add_price(
+        entry_id="w1", price_per_unit=5.0, valid_from="2026-01-01",
+        currency="EUR", base_fee=365.25,
+    )
+
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_WATER_CONFIG,
+        unique_id="gas_water_meter_water_W-1",
+        entry_id="w1",
+    )
+    entry.add_to_hass(hass)
+
+    coordinator = MeterCoordinator(hass, entry, db)
+    await coordinator.async_refresh()
+
+    data = coordinator.data
+    assert data is not None
+    assert data.consumption == 10.0
+    assert data.days_between is not None
+    assert abs(data.days_between - 31.0) < 0.1
+
+    # consumption_cost = 10 * 5 = 50.00
+    # prorated base fee = 365.25 * 31 / 365.25 = 31.00
+    expected = round(50.0 + 31.0, 2)
+    assert data.last_period_cost == expected
+
+
+async def test_base_fee_in_monthly_projected_cost(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Test that base_fee is prorated for monthly projected cost."""
+    db = mock_db_empty
+
+    for ts, val in [
+        ("2026-01-01T10:00:00+00:00", 100.0),
+        ("2026-02-01T10:00:00+00:00", 110.0),
+        ("2026-03-01T10:00:00+00:00", 125.0),
+    ]:
+        await db.async_add_reading(entry_id="w1", meter_number="W-1", reading=val, timestamp=ts)
+
+    await db.async_add_price(
+        entry_id="w1", price_per_unit=2.50, valid_from="2026-01-01",
+        currency="EUR", base_fee=120.0,
+    )
+
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_WATER_CONFIG,
+        unique_id="gas_water_meter_water_W-1",
+        entry_id="w1",
+    )
+    entry.add_to_hass(hass)
+
+    coordinator = MeterCoordinator(hass, entry, db)
+    await coordinator.async_refresh()
+
+    data = coordinator.data
+    assert data is not None
+    assert data.monthly_projection is not None
+
+    # Monthly consumption cost
+    consumption_cost = round(data.monthly_projection * 2.50, 2)
+    # Prorated base fee for one month
+    prorated = round(120.0 * DAYS_PER_MONTH / DAYS_PER_YEAR, 2)
+    expected = round(consumption_cost + prorated, 2)
+    assert data.monthly_projected_cost == expected
+
+
+async def test_base_fee_in_yearly_projected_cost(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Test that full base_fee is added to yearly projected cost."""
+    db = mock_db_empty
+
+    for ts, val in [
+        ("2026-01-01T10:00:00+00:00", 100.0),
+        ("2026-02-01T10:00:00+00:00", 110.0),
+        ("2026-03-01T10:00:00+00:00", 125.0),
+    ]:
+        await db.async_add_reading(entry_id="w1", meter_number="W-1", reading=val, timestamp=ts)
+
+    await db.async_add_price(
+        entry_id="w1", price_per_unit=2.50, valid_from="2026-01-01",
+        currency="EUR", base_fee=120.0,
+    )
+
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_WATER_CONFIG,
+        unique_id="gas_water_meter_water_W-1",
+        entry_id="w1",
+    )
+    entry.add_to_hass(hass)
+
+    coordinator = MeterCoordinator(hass, entry, db)
+    await coordinator.async_refresh()
+
+    data = coordinator.data
+    assert data is not None
+    assert data.yearly_projection is not None
+
+    # Yearly consumption cost
+    consumption_cost = round(data.yearly_projection * 2.50, 2)
+    # Full base fee for the year
+    expected = round(consumption_cost + 120.0, 2)
+    assert data.yearly_projected_cost == expected
+
+
+async def test_base_fee_none_backwards_compatible(hass: HomeAssistant, mock_db: MeterDatabase) -> None:
+    """Test that base_fee=None (legacy data) does not change cost calculations."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="test_entry",
+    )
+    entry.add_to_hass(hass)
+
+    coordinator = MeterCoordinator(hass, entry, mock_db)
+    await coordinator.async_refresh()
+
+    data = coordinator.data
+    assert data is not None
+
+    # current_base_fee should be None (no base_fee in mock data)
+    assert data.current_base_fee is None
+
+    # Costs should be purely consumption-based (no base fee added)
+    kwh = 14.8 * 11.465 * 0.9684
+    expected_cost = round(kwh * 1.85 / 100.0, 2)
+    assert data.last_period_cost == expected_cost
+
+
+async def test_current_base_fee_sensor_value(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
+    """Test that current_base_fee is set from the current price entry."""
+    db = mock_db_empty
+    await db.async_add_reading(entry_id="w1", meter_number="W-1", reading=100.0, timestamp="2026-01-01T10:00:00+00:00")
+    await db.async_add_price(
+        entry_id="w1", price_per_unit=2.50, valid_from="2026-01-01",
+        currency="EUR", base_fee=96.50,
+    )
+
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_WATER_CONFIG,
+        unique_id="gas_water_meter_water_W-1",
+        entry_id="w1",
+    )
+    entry.add_to_hass(hass)
+
+    coordinator = MeterCoordinator(hass, entry, db)
+    await coordinator.async_refresh()
+
+    data = coordinator.data
+    assert data is not None
+    assert data.current_base_fee == 96.50
+
+
 async def test_statistics_uses_entry_title(hass: HomeAssistant, mock_db: MeterDatabase) -> None:
     """Statistics name uses the config entry title (user-editable)."""
     entry = MockConfigEntry(

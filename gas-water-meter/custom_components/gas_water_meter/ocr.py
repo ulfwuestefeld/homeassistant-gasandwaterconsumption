@@ -8,14 +8,35 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    pass
 
 _LOGGER = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Custom tessdata directory shipped with the integration
+# ---------------------------------------------------------------------------
+
+_TESSDATA_DIR = Path(__file__).parent / "tessdata"
+
+
+def _get_tessdata_config() -> str:
+    """Return a ``--tessdata-dir`` CLI fragment if custom tessdata files exist.
+
+    Tesseract expects the directory to contain at least one ``.traineddata``
+    file.  When the bundled ``tessdata/`` directory has no such files the
+    system-installed training data is used as a fallback (empty string
+    returned).
+    """
+    if _TESSDATA_DIR.is_dir() and any(_TESSDATA_DIR.glob("*.traineddata")):
+        _LOGGER.debug("Using custom tessdata directory: %s", _TESSDATA_DIR)
+        return f"--tessdata-dir {_TESSDATA_DIR}"
+    return ""
 
 # Register HEIC/HEIF support if pillow-heif is installed
 _HEIF_AVAILABLE = False
@@ -353,16 +374,26 @@ def read_meter_image(image_path: str | Path) -> OcrResult:
     # Preprocess the image
     processed = preprocess_image(image_path)
 
+    # Build tessdata-dir fragment (empty string when no custom data present)
+    td = _get_tessdata_config()
+
     # Run OCR optimized for digits (meter reading)
-    digit_config = r"--psm 6 -c tessedit_char_whitelist=0123456789.,-"
+    digit_config = rf"--psm 6 -c tessedit_char_whitelist=0123456789.,- {td}".rstrip()
     digit_text = tess.image_to_string(processed, config=digit_config).strip()
 
     # Run OCR with full character set (for meter number / labels)
-    full_text = tess.image_to_string(Image.open(image_path)).strip()
+    full_text = tess.image_to_string(
+        Image.open(image_path),
+        config=td,
+    ).strip()
 
     # Get confidence data
     try:
-        data = tess.image_to_data(processed, output_type=tess.Output.DICT)
+        data = tess.image_to_data(
+            processed,
+            output_type=tess.Output.DICT,
+            config=td,
+        )
         confidences = [int(c) for c in data["conf"] if int(c) > 0]
         avg_confidence = sum(confidences) / len(confidences) / 100.0 if confidences else 0.0
     except Exception:

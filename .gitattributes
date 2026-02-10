@@ -10,3 +10,6 @@ Dockerfile text eol=lf
 
 # Keep Python as auto
 *.py text eol=auto
+
+# Tesseract training data are binary files
+*.traineddata binary

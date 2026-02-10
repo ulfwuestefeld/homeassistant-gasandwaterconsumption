@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 _SENTINEL = object()
 
 DB_FILENAME = "gas_water_meter.db"
-DB_SCHEMA_VERSION = 1
+DB_SCHEMA_VERSION = 3
 
 _CREATE_READINGS = """
 CREATE TABLE IF NOT EXISTS readings (
@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS prices (
     valid_from TEXT NOT NULL,
     valid_to TEXT,
     currency TEXT NOT NULL,
+    calorific_value REAL,
+    condition_factor REAL,
+    base_fee REAL,
     created_at TEXT DEFAULT (datetime('now'))
 )
 """
@@ -93,18 +96,65 @@ class MeterDatabase:
             self._db = None
 
     async def _create_schema(self) -> None:
-        """Create tables if they do not exist."""
+        """Create tables if they do not exist and run migrations."""
         assert self._db is not None
         await self._db.execute(_CREATE_READINGS)
         await self._db.execute(_CREATE_READINGS_INDEX)
         await self._db.execute(_CREATE_PRICES)
         await self._db.execute(_CREATE_PRICES_INDEX)
         await self._db.execute(_CREATE_META)
-        # Store schema version
+
+        # Run schema migrations
+        await self._migrate_schema()
+
+        # Store current schema version
         await self._db.execute(
             "INSERT OR REPLACE INTO schema_meta (key, value) VALUES (?, ?)",
             ("schema_version", str(DB_SCHEMA_VERSION)),
         )
+
+    async def _migrate_schema(self) -> None:
+        """Run incremental schema migrations."""
+        assert self._db is not None
+        cursor = await self._db.execute(
+            "SELECT value FROM schema_meta WHERE key = 'schema_version'",
+        )
+        row = await cursor.fetchone()
+        current_version = int(row[0]) if row else 1
+
+        if current_version < 2:  # noqa: PLR2004
+            await self._migrate_v1_to_v2()
+        if current_version < 3:  # noqa: PLR2004
+            await self._migrate_v2_to_v3()
+
+    async def _migrate_v1_to_v2(self) -> None:
+        """Add calorific_value and condition_factor columns to prices table.
+
+        These columns store the gas conversion factors per price entry so
+        that cost calculations use the factors that were valid at each
+        specific price period.  NULL means "use the config entry defaults".
+        """
+        assert self._db is not None
+        # Check if columns already exist (idempotent)
+        cursor = await self._db.execute("PRAGMA table_info(prices)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "calorific_value" not in columns:
+            _LOGGER.info("Migrating DB schema v1 -> v2: adding gas conversion columns to prices")
+            await self._db.execute("ALTER TABLE prices ADD COLUMN calorific_value REAL")
+            await self._db.execute("ALTER TABLE prices ADD COLUMN condition_factor REAL")
+
+    async def _migrate_v2_to_v3(self) -> None:
+        """Add base_fee column to prices table.
+
+        The annual base fee (Jahresgrundgebühr) is stored per price entry
+        and pro-rated into cost calculations.  NULL means no base fee.
+        """
+        assert self._db is not None
+        cursor = await self._db.execute("PRAGMA table_info(prices)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "base_fee" not in columns:
+            _LOGGER.info("Migrating DB schema v2 -> v3: adding base_fee column to prices")
+            await self._db.execute("ALTER TABLE prices ADD COLUMN base_fee REAL")
 
     # ------------------------------------------------------------------
     # Migration from legacy JSON Store
@@ -318,8 +368,19 @@ class MeterDatabase:
         valid_from: str,
         valid_to: str | None = None,
         currency: str = "EUR",
+        calorific_value: float | None = None,
+        condition_factor: float | None = None,
+        base_fee: float | None = None,
     ) -> int:
         """Insert a new price. Auto-closes the previous open price if needed.
+
+        ``calorific_value`` and ``condition_factor`` are gas-specific
+        conversion factors.  When ``None``, the coordinator falls back to
+        the config-entry defaults.
+
+        ``base_fee`` is the annual base fee (Jahresgrundgebühr) in the
+        meter's currency.  When ``None``, no base fee is included in cost
+        calculations.
 
         Returns the new row id.
         """
@@ -335,9 +396,12 @@ class MeterDatabase:
             )
 
         cursor = await self._db.execute(
-            """INSERT INTO prices (entry_id, price_per_unit, valid_from, valid_to, currency)
-               VALUES (?, ?, ?, ?, ?)""",
-            (entry_id, price_per_unit, valid_from, valid_to, currency),
+            """INSERT INTO prices
+               (entry_id, price_per_unit, valid_from, valid_to, currency,
+                calorific_value, condition_factor, base_fee)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (entry_id, price_per_unit, valid_from, valid_to, currency,
+             calorific_value, condition_factor, base_fee),
         )
         await self._db.commit()
         return cursor.lastrowid  # type: ignore[return-value]
@@ -350,6 +414,9 @@ class MeterDatabase:
         valid_from: str | None = None,
         valid_to: str | None = _SENTINEL,  # type: ignore[assignment]
         currency: str | None = None,
+        calorific_value: float | None = _SENTINEL,  # type: ignore[assignment]
+        condition_factor: float | None = _SENTINEL,  # type: ignore[assignment]
+        base_fee: float | None = _SENTINEL,  # type: ignore[assignment]
     ) -> bool:
         """Update an existing price entry."""
         assert self._db is not None
@@ -367,6 +434,15 @@ class MeterDatabase:
         if currency is not None:
             updates.append("currency = ?")
             params.append(currency)
+        if calorific_value is not _SENTINEL:
+            updates.append("calorific_value = ?")
+            params.append(calorific_value)
+        if condition_factor is not _SENTINEL:
+            updates.append("condition_factor = ?")
+            params.append(condition_factor)
+        if base_fee is not _SENTINEL:
+            updates.append("base_fee = ?")
+            params.append(base_fee)
         if not updates:
             return False
         params.append(price_id)
