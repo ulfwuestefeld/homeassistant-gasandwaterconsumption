@@ -361,7 +361,7 @@ class MeterDatabase:
     # Prices - CRUD
     # ------------------------------------------------------------------
 
-    async def async_add_price(
+    async def async_add_price(  # noqa: PLR0913
         self,
         entry_id: str,
         price_per_unit: float,
@@ -406,7 +406,7 @@ class MeterDatabase:
         await self._db.commit()
         return cursor.lastrowid  # type: ignore[return-value]
 
-    async def async_update_price(
+    async def async_update_price(  # noqa: PLR0913
         self,
         price_id: int,
         *,

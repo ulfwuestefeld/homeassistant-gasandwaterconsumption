@@ -7,6 +7,7 @@ import os
 import tempfile
 from unittest.mock import patch
 
+import aiosqlite
 from custom_components.gas_water_meter.db import MeterDatabase
 from homeassistant.core import HomeAssistant
 
@@ -396,8 +397,6 @@ async def test_schema_migration_v2_to_v3_adds_base_fee(hass: HomeAssistant) -> N
     os.close(tmp_fd)
 
     # Create a DB at schema v2 (without base_fee column)
-    import aiosqlite
-
     async with aiosqlite.connect(tmp_path) as conn:
         await conn.execute(
             """CREATE TABLE IF NOT EXISTS schema_meta (
