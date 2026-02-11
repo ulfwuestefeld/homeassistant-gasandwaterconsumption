@@ -181,7 +181,7 @@ async def test_empty_db_sensors_unknown(hass: HomeAssistant) -> None:
 
 
 async def test_gas_sensors_created(hass: HomeAssistant) -> None:
-    """Test that exactly 15 sensors are created for a gas meter (12 common + 2 energy_consumption + current_base_fee)."""
+    """Test creation of 15 gas meter sensors (12 common + 2 energy + base_fee)."""
     await _setup_entry(hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345")
 
     states = hass.states.async_all("sensor")
