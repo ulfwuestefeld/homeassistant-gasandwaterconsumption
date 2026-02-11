@@ -101,6 +101,17 @@ SENSOR_DESCRIPTIONS: tuple[MeterSensorDescription, ...] = (
         value_fn=lambda data: data.energy_consumption,
         meter_types=(METER_TYPE_GAS,),
     ),
+    # Gas-only: energy consumption in kWh (Energy Dashboard compatible)
+    MeterSensorDescription(
+        key="energy_consumption_total",
+        translation_key="energy_consumption_total",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=3,
+        value_fn=lambda data: data.energy_consumption,
+        meter_types=(METER_TYPE_GAS,),
+    ),
     MeterSensorDescription(
         key="days_between",
         translation_key="days_between",
@@ -240,7 +251,7 @@ class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
             name=f"{device_prefix} - {meter_name}",
             manufacturer="Manual Entry",
             model=f"{meter_type.capitalize()} Meter",
-            sw_version="0.1.6",
+            sw_version="0.1.8",
         )
 
     @property

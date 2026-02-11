@@ -9,5 +9,5 @@
     "iot_class": "calculated",
     "issue_tracker": "https://github.com/ulfwuestefeld/gasandwater/issues",
     "requirements": ["pytesseract>=0.3.10", "aiosqlite>=0.20.0", "pillow-heif>=0.18.0"],
-    "version": "0.1.7"
+    "version": "0.1.8"
 }

@@ -74,6 +74,9 @@
             "energy_consumption": {
                 "name": "Energy consumption"
             },
+            "energy_consumption_total": {
+                "name": "Energy consumption (meter reading)"
+            },
             "days_between": {
                 "name": "Days between readings"
             },

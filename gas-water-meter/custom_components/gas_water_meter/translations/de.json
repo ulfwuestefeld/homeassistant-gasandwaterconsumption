@@ -74,6 +74,9 @@
             "energy_consumption": {
                 "name": "Energieverbrauch"
             },
+            "energy_consumption_total": {
+                "name": "Energieverbrauch (Zählerstand)"
+            },
             "days_between": {
                 "name": "Tage zwischen Ablesungen"
             },
