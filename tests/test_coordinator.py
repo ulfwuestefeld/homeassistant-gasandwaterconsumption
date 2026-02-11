@@ -1147,8 +1147,11 @@ async def test_base_fee_prorated_in_last_period_cost(hass: HomeAssistant, mock_d
         await db.async_add_reading(entry_id="w1", meter_number="W-1", reading=val, timestamp=ts)
 
     await db.async_add_price(
-        entry_id="w1", price_per_unit=5.0, valid_from="2026-01-01",
-        currency="EUR", base_fee=365.25,
+        entry_id="w1",
+        price_per_unit=5.0,
+        valid_from="2026-01-01",
+        currency="EUR",
+        base_fee=365.25,
     )
 
     entry = MockConfigEntry(
@@ -1186,8 +1189,11 @@ async def test_base_fee_in_monthly_projected_cost(hass: HomeAssistant, mock_db_e
         await db.async_add_reading(entry_id="w1", meter_number="W-1", reading=val, timestamp=ts)
 
     await db.async_add_price(
-        entry_id="w1", price_per_unit=2.50, valid_from="2026-01-01",
-        currency="EUR", base_fee=120.0,
+        entry_id="w1",
+        price_per_unit=2.50,
+        valid_from="2026-01-01",
+        currency="EUR",
+        base_fee=120.0,
     )
 
     entry = MockConfigEntry(
@@ -1225,8 +1231,11 @@ async def test_base_fee_in_yearly_projected_cost(hass: HomeAssistant, mock_db_em
         await db.async_add_reading(entry_id="w1", meter_number="W-1", reading=val, timestamp=ts)
 
     await db.async_add_price(
-        entry_id="w1", price_per_unit=2.50, valid_from="2026-01-01",
-        currency="EUR", base_fee=120.0,
+        entry_id="w1",
+        price_per_unit=2.50,
+        valid_from="2026-01-01",
+        currency="EUR",
+        base_fee=120.0,
     )
 
     entry = MockConfigEntry(
@@ -1281,8 +1290,11 @@ async def test_current_base_fee_sensor_value(hass: HomeAssistant, mock_db_empty:
     db = mock_db_empty
     await db.async_add_reading(entry_id="w1", meter_number="W-1", reading=100.0, timestamp="2026-01-01T10:00:00+00:00")
     await db.async_add_price(
-        entry_id="w1", price_per_unit=2.50, valid_from="2026-01-01",
-        currency="EUR", base_fee=96.50,
+        entry_id="w1",
+        price_per_unit=2.50,
+        valid_from="2026-01-01",
+        currency="EUR",
+        base_fee=96.50,
     )
 
     entry = MockConfigEntry(

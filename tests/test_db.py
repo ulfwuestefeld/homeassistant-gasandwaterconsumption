@@ -403,9 +403,7 @@ async def test_schema_migration_v2_to_v3_adds_base_fee(hass: HomeAssistant) -> N
                 key TEXT PRIMARY KEY, value TEXT NOT NULL
             )"""
         )
-        await conn.execute(
-            "INSERT INTO schema_meta (key, value) VALUES ('schema_version', '2')"
-        )
+        await conn.execute("INSERT INTO schema_meta (key, value) VALUES ('schema_version', '2')")
         await conn.execute(
             """CREATE TABLE IF NOT EXISTS prices (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

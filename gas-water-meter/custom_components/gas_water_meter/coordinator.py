@@ -105,10 +105,12 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         # Gas-specific default conversion factors (config-entry level).
         # These serve as fallback when a price entry has no explicit factors.
         self._default_calorific_value: float = entry.data.get(
-            CONF_CALORIFIC_VALUE, DEFAULT_CALORIFIC_VALUE,
+            CONF_CALORIFIC_VALUE,
+            DEFAULT_CALORIFIC_VALUE,
         )
         self._default_condition_factor: float = entry.data.get(
-            CONF_CONDITION_FACTOR, DEFAULT_CONDITION_FACTOR,
+            CONF_CONDITION_FACTOR,
+            DEFAULT_CONDITION_FACTOR,
         )
 
         # Change detection for statistics import
@@ -136,7 +138,8 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
     # ------------------------------------------------------------------
 
     def _resolve_gas_factors(
-        self, price_entry: dict[str, Any] | None = None,
+        self,
+        price_entry: dict[str, Any] | None = None,
     ) -> tuple[float, float]:
         """Return (calorific_value, condition_factor) for a price entry.
 
@@ -144,16 +147,8 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         used when the price row has NULL values (e.g. legacy data before
         the schema-v2 migration).
         """
-        cv = (
-            price_entry.get("calorific_value")
-            if price_entry is not None
-            else None
-        )
-        cf = (
-            price_entry.get("condition_factor")
-            if price_entry is not None
-            else None
-        )
+        cv = price_entry.get("calorific_value") if price_entry is not None else None
+        cf = price_entry.get("condition_factor") if price_entry is not None else None
         return (
             cv if cv is not None else self._default_calorific_value,
             cf if cf is not None else self._default_condition_factor,
@@ -228,7 +223,8 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
                 period_price = await self.db.async_get_price_at(self._entry_id, prev["timestamp"])
                 ecv, ecf = self._resolve_gas_factors(period_price)
                 data.energy_consumption = round(
-                    self._m3_to_kwh(data.consumption, ecv, ecf), 3,
+                    self._m3_to_kwh(data.consumption, ecv, ecf),
+                    3,
                 )
 
         # Projection: based only on readings with the current meter number.
@@ -289,7 +285,10 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             if period_price is not None:
                 pp_cv, pp_cf = self._resolve_gas_factors(period_price)
                 consumption_cost = self._compute_cost(
-                    data.consumption, period_price["price_per_unit"], pp_cv, pp_cf,
+                    data.consumption,
+                    period_price["price_per_unit"],
+                    pp_cv,
+                    pp_cf,
                 )
                 pp_base_fee = period_price.get("base_fee")
                 prorated = self._prorate_base_fee(pp_base_fee, data.days_between or 0.0)
@@ -298,17 +297,24 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         # Projected costs — use current price and its factors.
         if data.monthly_projection is not None:
             consumption_cost = self._compute_cost(
-                data.monthly_projection, data.current_price, cur_cv, cur_cf,
+                data.monthly_projection,
+                data.current_price,
+                cur_cv,
+                cur_cf,
             )
             prorated = self._prorate_base_fee(cur_base_fee, DAYS_PER_MONTH)
             data.monthly_projected_cost = round(consumption_cost + prorated, 2)
         if data.yearly_projection is not None:
             consumption_cost = self._compute_cost(
-                data.yearly_projection, data.current_price, cur_cv, cur_cf,
+                data.yearly_projection,
+                data.current_price,
+                cur_cv,
+                cur_cf,
             )
             # Yearly: full base fee (no pro-rating needed)
             data.yearly_projected_cost = round(
-                consumption_cost + (cur_base_fee or 0.0), 2,
+                consumption_cost + (cur_base_fee or 0.0),
+                2,
             )
 
     # ------------------------------------------------------------------

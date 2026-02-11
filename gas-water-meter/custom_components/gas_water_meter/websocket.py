@@ -316,8 +316,15 @@ async def ws_update_price(
     """Update an existing price."""
     db = _get_db(hass)
     kwargs: dict[str, Any] = {}
-    for key in ("price_per_unit", "valid_from", "valid_to", "currency",
-                "calorific_value", "condition_factor", "base_fee"):
+    for key in (
+        "price_per_unit",
+        "valid_from",
+        "valid_to",
+        "currency",
+        "calorific_value",
+        "condition_factor",
+        "base_fee",
+    ):
         if key in msg:
             kwargs[key] = msg[key]
 

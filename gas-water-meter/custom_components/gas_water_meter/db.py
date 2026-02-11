@@ -400,8 +400,7 @@ class MeterDatabase:
                (entry_id, price_per_unit, valid_from, valid_to, currency,
                 calorific_value, condition_factor, base_fee)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (entry_id, price_per_unit, valid_from, valid_to, currency,
-             calorific_value, condition_factor, base_fee),
+            (entry_id, price_per_unit, valid_from, valid_to, currency, calorific_value, condition_factor, base_fee),
         )
         await self._db.commit()
         return cursor.lastrowid  # type: ignore[return-value]

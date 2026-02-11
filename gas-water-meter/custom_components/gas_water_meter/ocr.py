@@ -38,6 +38,7 @@ def _get_tessdata_config() -> str:
         return f"--tessdata-dir {_TESSDATA_DIR}"
     return ""
 
+
 # Register HEIC/HEIF support if pillow-heif is installed
 _HEIF_AVAILABLE = False
 try:
