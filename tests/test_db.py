@@ -438,7 +438,7 @@ async def test_schema_migration_v2_to_v3_adds_base_fee(hass: HomeAssistant) -> N
         await db.async_setup()
 
     # Verify column exists by inserting a price with base_fee
-    pid = await db.async_add_price(
+    await db.async_add_price(
         entry_id="test",
         price_per_unit=1.50,
         valid_from="2026-01-01",
@@ -456,7 +456,7 @@ async def test_schema_migration_v2_to_v3_adds_base_fee(hass: HomeAssistant) -> N
 async def test_add_price_with_base_fee(mock_db_empty: MeterDatabase) -> None:
     """Test that async_add_price stores the base_fee value."""
     db = mock_db_empty
-    pid = await db.async_add_price(
+    await db.async_add_price(
         entry_id="test",
         price_per_unit=1.85,
         valid_from="2026-01-01",
