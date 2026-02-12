@@ -74,6 +74,9 @@
             "energy_consumption": {
                 "name": "Energy consumption"
             },
+            "energy_consumption_total": {
+                "name": "Energy consumption (meter reading)"
+            },
             "days_between": {
                 "name": "Days between readings"
             },
@@ -88,6 +91,9 @@
             },
             "current_price": {
                 "name": "Current price"
+            },
+            "price_per_m3": {
+                "name": "Price per m³"
             },
             "last_period_cost": {
                 "name": "Last period cost"

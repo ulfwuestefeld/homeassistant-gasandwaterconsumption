@@ -157,6 +157,24 @@ SENSOR_DESCRIPTIONS: tuple[MeterSensorDescription, ...] = (
         dynamic_unit=True,
         suggested_display_precision=4,
         value_fn=lambda data: data.current_price,
+    ),  # Gas-only: price in EUR/m³ (converted from ct/kWh using calorific_value and condition_factor)
+    MeterSensorDescription(
+        key="price_per_m3",
+        translation_key="price_per_m3",
+        device_class=SensorDeviceClass.MONETARY,
+        native_unit_of_measurement="EUR/m³",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=4,
+        value_fn=lambda data: (
+            (data.current_price / 100.0 * data.calorific_value * data.condition_factor)
+            if (
+                data.current_price is not None
+                and data.calorific_value is not None
+                and data.condition_factor is not None
+            )
+            else None
+        ),
+        meter_types=(METER_TYPE_GAS,),
     ),
     MeterSensorDescription(
         key="last_period_cost",
@@ -251,7 +269,7 @@ class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
             name=f"{device_prefix} - {meter_name}",
             manufacturer="Manual Entry",
             model=f"{meter_type.capitalize()} Meter",
-            sw_version="0.1.8",
+            sw_version="0.1.9",
         )
 
     @property

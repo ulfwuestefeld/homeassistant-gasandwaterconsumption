@@ -181,13 +181,13 @@ async def test_empty_db_sensors_unknown(hass: HomeAssistant) -> None:
 
 
 async def test_gas_sensors_created(hass: HomeAssistant) -> None:
-    """Test creation of 15 gas meter sensors (12 common + 2 energy + base_fee)."""
+    """Test creation of 16 gas meter sensors (13 common + 2 energy + base_fee)."""
     await _setup_entry(hass, MOCK_GAS_CONFIG, "gas_water_meter_gas_GAS-12345")
 
     states = hass.states.async_all("sensor")
     our_sensors = [s for s in states if s.entity_id.startswith("sensor.gas_meter")]
 
-    assert len(our_sensors) == 15
+    assert len(our_sensors) == 16
     # Verify energy_consumption sensors exist (energy_consumption + energy_consumption_total)
     energy_sensors = [s for s in our_sensors if "energy_consumption" in s.entity_id]
     assert len(energy_sensors) == 2

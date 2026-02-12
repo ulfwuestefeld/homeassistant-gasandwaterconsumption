@@ -219,4 +219,4 @@ MIT License. See [FOSS.md](FOSS.md) for third-party licenses.
 
 ## Version
 
-0.1.8 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.1.9 — See [CHANGELOG.md](CHANGELOG.md) for details.

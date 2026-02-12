@@ -37,11 +37,13 @@ This add-on installs the **Gas & Water Meter** custom integration into your Home
 | Last entry date | When the last reading was recorded | x | x |
 | Last consumption | Delta between last two readings (m³) | x | x |
 | Energy consumption | Last period in kWh (m³ × Brennwert × Zustandszahl) | x | - |
+| Energy consumption (meter reading) | Last period in kWh for Energy Dashboard | x | - |
 | Days between readings | Days between last two readings | x | x |
 | Daily average consumption | Average daily consumption (m³/day) | x | x |
 | Monthly projection | Projected monthly consumption (m³) | x | x |
 | Yearly projection | Projected yearly consumption (m³) | x | x |
 | Current price | Active price (gas: ct/kWh, water: EUR/m³) | x | x |
+| Price per m³ | Current price in EUR/m³ (gas only; converted from ct/kWh) | x | - |
 | Annual base fee | Annual base fee from active price entry | x | x |
 | Last period cost | Cost for the last consumption period (incl. pro-rated base fee) | x | x |
 | Monthly projected cost | Projected monthly cost (incl. pro-rated base fee) | x | x |

@@ -5,6 +5,19 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-02-12
+
+### Added
+
+- **New gas meter sensor `price_per_m3`** — converts price from ct/kWh to EUR/m³ using calorific value (Brennwert) and condition factor (Zustandszahl); calculated as: `(price / 100) × calorific_value × condition_factor`
+- Energy consumption sensor for Energy Dashboard compatibility (`energy_consumption_total` with `TOTAL_INCREASING` state class)
+- German translation for `price_per_m3` sensor ("Preis pro m³")
+
+### Changed
+
+- Gas meters now create 15 sensors (was 14, added energy_consumption_total and price_per_m3)
+- Test assertion updated: `test_gas_sensors_created` now expects 15 sensors
+
 ## [0.1.8] - 2026-02-11
 
 ### Added
