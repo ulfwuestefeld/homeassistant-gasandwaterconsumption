@@ -16,9 +16,7 @@ def mock_hass() -> MagicMock:
     """Create a mock Home Assistant instance."""
     hass = MagicMock(spec=HomeAssistant)
     hass.config = MagicMock()
-    hass.config.path = MagicMock(
-        side_effect=lambda *args: os.path.join(tempfile.gettempdir(), *args)
-    )
+    hass.config.path = MagicMock(side_effect=lambda *args: os.path.join(tempfile.gettempdir(), *args))
     hass.data = {}  # Add data dict for Store compatibility
     hass.async_add_executor_job = MagicMock()
 
@@ -46,16 +44,12 @@ class TestMeterStoreInitialization:
         store = MeterStore(mock_hass, "test_entry")
         assert store.data is None
 
-    def test_readings_property_returns_empty_list_initially(
-        self, mock_hass: MagicMock
-    ) -> None:
+    def test_readings_property_returns_empty_list_initially(self, mock_hass: MagicMock) -> None:
         """Test that readings property returns empty list when not loaded."""
         store = MeterStore(mock_hass, "test_entry")
         assert store.readings == []
 
-    def test_prices_property_returns_empty_list_initially(
-        self, mock_hass: MagicMock
-    ) -> None:
+    def test_prices_property_returns_empty_list_initially(self, mock_hass: MagicMock) -> None:
         """Test that prices property returns empty list when not loaded."""
         store = MeterStore(mock_hass, "test_entry")
         assert store.prices == []
@@ -90,9 +84,7 @@ class TestMeterStoreLoad:
             mock_store_instance.async_save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_async_load_restores_existing_data(
-        self, mock_hass: MagicMock
-    ) -> None:
+    async def test_async_load_restores_existing_data(self, mock_hass: MagicMock) -> None:
         """Test that async_load restores existing stored data."""
         existing_data = {
             "meter_type": "water",
@@ -231,9 +223,7 @@ class TestMeterStoreReadings:
             assert store.readings[2]["reading"] == 110.0
 
     @pytest.mark.asyncio
-    async def test_async_add_reading_raises_when_not_loaded(
-        self, mock_hass: MagicMock
-    ) -> None:
+    async def test_async_add_reading_raises_when_not_loaded(self, mock_hass: MagicMock) -> None:
         """Test that adding a reading raises when store is not loaded."""
         store = MeterStore(mock_hass, "test_entry")
 
@@ -278,9 +268,7 @@ class TestMeterStoreReadings:
         assert last is not None
         assert last["reading"] == 110.0
 
-    def test_get_previous_reading_returns_none_when_less_than_two(
-        self, mock_hass: MagicMock
-    ) -> None:
+    def test_get_previous_reading_returns_none_when_less_than_two(self, mock_hass: MagicMock) -> None:
         """Test that get_previous_reading returns None with less than 2 readings."""
         store = MeterStore(mock_hass, "test_entry")
         store._data = {
@@ -301,9 +289,7 @@ class TestMeterStoreReadings:
 
         assert store.get_previous_reading() is None
 
-    def test_get_previous_reading_returns_second_to_last(
-        self, mock_hass: MagicMock
-    ) -> None:
+    def test_get_previous_reading_returns_second_to_last(self, mock_hass: MagicMock) -> None:
         """Test that get_previous_reading returns the second-to-last reading."""
         store = MeterStore(mock_hass, "test_entry")
         store._data = {
@@ -436,9 +422,7 @@ class TestMeterStorePrices:
             assert store.prices[2]["price_per_unit"] == 2.0
 
     @pytest.mark.asyncio
-    async def test_async_add_price_raises_when_not_loaded(
-        self, mock_hass: MagicMock
-    ) -> None:
+    async def test_async_add_price_raises_when_not_loaded(self, mock_hass: MagicMock) -> None:
         """Test that adding a price raises when store is not loaded."""
         store = MeterStore(mock_hass, "test_entry")
 
@@ -454,9 +438,7 @@ class TestMeterStorePrices:
         store = MeterStore(mock_hass, "test_entry")
         assert store.get_current_price() is None
 
-    def test_get_current_price_returns_none_when_all_future(
-        self, mock_hass: MagicMock
-    ) -> None:
+    def test_get_current_price_returns_none_when_all_future(self, mock_hass: MagicMock) -> None:
         """Test that get_current_price returns None when all prices are in the future."""
         store = MeterStore(mock_hass, "test_entry")
         store._data = {
@@ -476,9 +458,7 @@ class TestMeterStorePrices:
 
         assert store.get_current_price() is None
 
-    def test_get_current_price_returns_most_recent_valid(
-        self, mock_hass: MagicMock
-    ) -> None:
+    def test_get_current_price_returns_most_recent_valid(self, mock_hass: MagicMock) -> None:
         """Test that get_current_price returns the most recent price valid as of today."""
         store = MeterStore(mock_hass, "test_entry")
         store._data = {
