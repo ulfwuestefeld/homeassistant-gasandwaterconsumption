@@ -26,7 +26,7 @@ gas-water-meter/
 │   ├── http.py                        # HTTP endpoint for image uploads
 │   ├── manifest.json                  # Integration metadata (v0.1.9)
 │   ├── ocr.py                         # Tesseract OCR for meter readings
-│   ├── sensor.py                      # 15 gas sensors + 13 water sensors
+│   ├── sensor.py                      # 16 gas sensors + 13 water sensors
 │   ├── services.yaml                  # Service definitions
 │   ├── store.py                       # MeterStore - legacy JSON storage
 │   ├── strings.json                   # i18n source (en/de)
@@ -221,50 +221,41 @@ class MeterStore:
 
 15 sensors for gas, 13 for water. Uses declarative `SensorEntityDescription` pattern.
 
-### Gas Meter Sensors
+### Gas Meter Sensors (16 total)
 
+**13 Common Sensors** (Gas + Water):
+- `meter_reading` (m³, TOTAL_INCREASING)
+- `meter_number` (diagnostic)
+- `last_entry_date` (TIMESTAMP)
+- `consumption` (m³, diagnostic)
+- `days_between` (days, diagnostic)
+- `daily_average` (m³/day)
+- `monthly_projection` (m³ forecast)
+- `yearly_projection` (m³ forecast)
+- `last_period_cost` (EUR)
+- `monthly_projected_cost` (EUR)
+- `yearly_projected_cost` (EUR)
+- `current_base_fee` (EUR, diagnostic)
+- `current_price` (ct/kWh for gas, EUR/m³ for water, diagnostic)
+
+**3 Gas-Only Sensors**:
+- `energy_consumption` (kWh = m³ × calorific × condition, diagnostic)
+- `energy_consumption_total` (kWh cumulative, TOTAL_INCREASING for Energy Dashboard)
+- `price_per_m3` (EUR/m³ = ct/kWh ÷ 100 × calorific × condition, diagnostic)
+
+**Calculation Patterns for Gas**:
 ```python
-METER_READINGS:  # m³ (instantaneous)
-  key="meter_reading"
-  device_class=None
-
-ENERGY_CONSUMPTION:  # kWh (last period: m³ × calorific × condition)
-  key="energy_consumption"
-  device_class=SensorDeviceClass.ENERGY
-  state_class=SensorStateClass.TOTAL_INCREASING
-
-ENERGY_CONSUMPTION_TOTAL:  # Total kWh (cumulative)
-  key="energy_consumption_total"
-  device_class=SensorDeviceClass.ENERGY
-  state_class=SensorStateClass.TOTAL_INCREASING
-  native_unit_of_measurement="kWh"
-
-PRICE_PER_M3:  # EUR/m³ = (price_ct/100) × calorific × condition
-  key="price_per_m3"
-  device_class=SensorDeviceClass.MONETARY
-  native_unit_of_measurement="EUR/m³"
-  suggested_display_precision=4
-
-CURRENT_PRICE:  # ct/kWh (gas only, from prices table)
-  key="current_price"
-  device_class=SensorDeviceClass.MONETARY
-  native_unit_of_measurement="ct/kWh"
-
-MONTHLY_PROJECTION:  # Projected month-end consumption
-YEARLY_PROJECTION:  # Projected year-end consumption
-DAILY_AVERAGE:      # Average consumption per day (consumption ÷ days_between)
-```
-
-**Calculation Pattern for Gas**:
-```python
-# Energy in kWh
+# Energy in kWh (for both energy_consumption and energy_consumption_total)
 energy_kWh = reading_m3 × calorific_value × condition_factor
 
-# Price per m³ (EUR)
+# Price per m³ (EUR) — converted from ct/kWh
 price_per_m3 = (current_price_ct / 100) × calorific_value × condition_factor
 
-# Monthly cost (EUR)
-monthly_cost = consumption_m3 × price_per_m3 + base_fee
+# Current price in ct/kWh (from prices table)
+current_price = price_ct  # e.g., 1234 ct/kWh → "1234 ct/kWh" in state
+
+# Monthly/yearly costs (EUR) including pro-rated base_fee
+monthly_cost = consumption_m3 × price_per_m3 + (base_fee × days_in_period / 365)
 ```
 
 **Key**: All gas sensors use the same calculation basis (calorific_value, condition_factor).
@@ -303,14 +294,14 @@ Single-step user configuration for meter setup.
 ```python
 class GasWaterMeterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    
+
     async def async_step_user(self, user_input=None):
         """Handle user setup."""
         if user_input:
             await self.async_set_unique_id(f"{user_input['meter_type']}_{user_input['meter_number']}")
             self._abort_if_unique_id_configured()
             return self.async_create_entry(title=user_input['meter_name'], data=user_input)
-        
+
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
@@ -540,7 +531,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """Create sensors based on meter type."""
     coordinator = entry.runtime_data
     meter_type = coordinator.config_entry.data.get("meter_type", "gas")
-    
+
     entities = [
         MeterSensorEntity(coordinator, desc)
         for desc in METER_SENSOR_DESCRIPTIONS
@@ -569,7 +560,7 @@ class GasWaterMeterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 title=user_input["meter_name"],
                 data=user_input,
             )
-        
+
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
@@ -615,7 +606,7 @@ async def test_async_load_creates_default_data(mock_hass):
 
         store = MeterStore(mock_hass, "test_entry")
         await store.async_load(meter_type="gas", ...)
-        
+
         # ✗ Wrong: Would raise "can't use in 'await' expression"
         # mock_store_instance.async_load = MagicMock(return_value=None)
 ```
@@ -627,11 +618,11 @@ async def test_async_load_creates_default_data(mock_hass):
 ```python
 async def test_coordinator_updates_readings(hass, mock_entry):
     """Test coordinator fetches and caches readings."""
-    with patch.object(MeterDatabase, "async_get_readings", 
+    with patch.object(MeterDatabase, "async_get_readings",
                      return_value=MOCK_READINGS) as mock_get:
         coordinator = MeterCoordinator(hass, mock_entry)
         await coordinator.async_config_entry_first_refresh()
-        
+
         assert coordinator.data.readings == MOCK_READINGS
         mock_get.assert_called()
 ```
@@ -645,7 +636,7 @@ async def test_gas_sensors_created(hass, mock_entry):
                      return_value=MOCK_DATA):
         await hass.config_entries.async_setup(mock_entry.entry_id)
         await hass.async_block_till_done()
-        
+
         # Assert all 15 gas sensors exist
         for sensor_key in GAS_SENSOR_KEYS:
             state = hass.states.get(f"sensor.gas_meter_{sensor_key}")
@@ -661,7 +652,7 @@ async def test_user_flow_creates_entry(hass):
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     assert result["step_id"] == "user"
-    
+
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         user_input={
@@ -671,7 +662,7 @@ async def test_user_flow_creates_entry(hass):
             "calorific_value": 11.0,
         },
     )
-    
+
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["meter_type"] == "gas"
 ```
@@ -893,5 +884,5 @@ your-repo/
 
 ---
 
-**Last Updated**: 2026-02-13  
+**Last Updated**: 2026-02-13
 **Maintainer**: Gas & Water Meter Team

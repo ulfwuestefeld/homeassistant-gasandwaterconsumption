@@ -85,10 +85,10 @@ price_per_m3 = (price_ct / 100) × calorific_value × condition_factor
 
 | Aspect | Gas | Water |
 |--------|-----|-------|
-| Sensors | 15 (includes energy + price) | 13 (no energy/price) |
+| Sensors | 16 (13 common + energy_consumption + energy_consumption_total + price_per_m3) | 13 (13 common) |
 | Energy calc | Yes (kWh = m³ × calorific × condition) | No |
-| Device class | ENERGY, MONETARY | Custom (Water) |
-| Pricing | ct/kWh (calculate EUR/m³) | EUR/m³ (direct) |
+| Device class | GAS/ENERGY, MONETARY | WATER |
+| Pricing | ct/kWh (converted to EUR/m³) | EUR/m³ (direct) |
 | Icons | gas symbols | water drop symbols |
 
 ### 7. Meter Number Change Detection
@@ -142,7 +142,7 @@ Key test files:
 - `tests/test_db.py` - Database operations
 - `tests/test_coordinator.py` - Data coordinator
 - `tests/test_config_flow.py` - UI config flow
-- `tests/test_sensor.py` - Sensor creation (expects 15 gas, 13 water)
+- `tests/test_sensor.py` - Sensor creation (expects 16 gas, 13 water)
 - `tests/test_store.py` - Legacy storage (28 tests)
 - `tests/test_ocr.py` - OCR/Tesseract
 - `tests/test_http.py` - REST API
@@ -188,9 +188,9 @@ await mock_method()
 - Schema version: 3 (with base_fee support)
 
 ### `sensor.py`
-- 15 gas sensors + 13 water sensors
-- `SensorEntityDescription` declarations
-- `value_fn` lambdas for calculations
+- 16 gas sensors + 13 water sensors (13 common, 3 gas-only)
+- `SensorEntityDescription` declarations with `meter_types` filter
+- `value_fn` lambdas for calculations (energy, price conversions)
 
 ### `services.yaml` + service handlers
 - `record_reading`: Add meter reading with optional image
