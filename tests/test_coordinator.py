@@ -889,7 +889,7 @@ async def test_statistics_imported_with_reading_timestamps(hass: HomeAssistant, 
 
         # Metadata
         assert metadata["source"] == "gas_water_meter"
-        assert metadata["statistic_id"] == "gas_water_meter:test_entry"
+        assert metadata["statistic_id"] == "gas_water_meter:reading_test_entry"
         assert metadata["has_sum"] is True
         assert metadata["has_mean"] is False
         assert metadata["name"] == "Gas Meter - Kitchen"
@@ -1088,7 +1088,7 @@ async def test_statistics_water_meter(hass: HomeAssistant, mock_db_empty: MeterD
         stats = list(call_args[0][2])
 
         assert metadata["source"] == "gas_water_meter"
-        assert metadata["statistic_id"] == "gas_water_meter:w1"
+        assert metadata["statistic_id"] == "gas_water_meter:reading_w1"
         assert metadata["name"] == "Water Meter - Garden"
         assert metadata["unit_of_measurement"] == "m³"
 
