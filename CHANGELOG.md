@@ -5,6 +5,13 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-06-03
+
+### Fixed
+
+- **Fixed invalid statistic_id for Energy Dashboard** — statistic_id now uses lowercase entry_id (e.g., `gas_water_meter:01kgzvqq0qbfexcefmmn82wd4t`). Home Assistant requires lowercase in statistic identifiers. Old invalid statistics are automatically cleaned up on upgrade.
+- **Automatic migration of reading statistics** — old erroneous statistics with uppercase entry_id are deleted during the first sync after upgrade
+
 ## [0.1.9] - 2026-02-12
 
 ### Added

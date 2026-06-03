@@ -5,6 +5,13 @@ All notable changes to the Gas & Water Meter add-on will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-06-03
+
+### Fixed
+
+- **Fixed invalid statistic_id for Energy Dashboard** — entry_id is now converted to lowercase in statistic identifiers. Home Assistant requires lowercase identifiers, which fixes the `HomeAssistantError: Invalid statistic_id` error
+- **Automatic cleanup of old statistics** — erroneous statistics with uppercase entry_id are automatically removed during the first sync after upgrade
+
 ## [0.1.9] - 2026-02-12
 
 ### Added
