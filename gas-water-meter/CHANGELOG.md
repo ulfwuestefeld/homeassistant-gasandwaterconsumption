@@ -5,13 +5,20 @@ All notable changes to the Gas & Water Meter add-on will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-06-03
+
+### Fixed
+
+- **Fixed services.yaml validation errors** — number selector step values now comply with Home Assistant limits
+- **Simplified statistics cleanup** — removed non-existent API dependency for better compatibility
+
 ## [0.2.1] - 2026-06-03
 
 ### Fixed
 
 - **Removed deprecated architectures** — build.yaml now only supports amd64 and aarch64 (removed i386 and armv7 per Home Assistant latest requirements)
 - **Fixed invalid YAML in translation files** — de.yaml and en.yaml now have valid dictionary structure for add-on configuration section
-- **Fixed statistics import failure** — `delete_statistics` import wrapped in try-except for compatibility with newer Home Assistant versions where the API is unavailable; cleanup gracefully falls back if function is missing
+- **Fixed statistics import failure** — removed dependency on non-existent `delete_statistics` API; old statistics with uppercase entry_id are safely ignored while new lowercase statistics take precedence
 - **Fixed async/await in statistics import** — `_do_import_statistics()` is now async and `async_import_statistics()` is properly awaited; resolves test failures due to non-awaited coroutine
 
 ## [0.2.0] - 2026-06-03

@@ -5,14 +5,21 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-06-03
+
+### Fixed
+
+- **Fixed services.yaml validation errors** — step values in number selectors now comply with Home Assistant limits (max 0.01 for `price_per_unit`, 0.001 for `condition_factor`)
+- **Simplified statistics cleanup** — removed dependency on `delete_statistics` API which no longer exists in current Home Assistant versions
+
 ## [0.2.1] - 2026-06-03
 
 ### Fixed
 
 - **Removed deprecated architectures** — build.yaml now only supports amd64 and aarch64 (removed i386 and armv7 per Home Assistant latest requirements)
 - **Fixed invalid YAML in translation files** — de.yaml and en.yaml now have valid dictionary structure for add-on configuration section
-- **Fixed statistics import failure** — `delete_statistics` import is now wrapped in try-except to handle newer Home Assistant versions where the API may not be available; cleanup gracefully skips if the function is unavailable
-- **Fixed async/await in statistics import** — `_do_import_statistics()` is now properly async and `async_import_statistics()` is awaited, fixing "'NoneType' object is not subscriptable" test failures
+- **Fixed statistics import failure** — removed dependency on non-existent `delete_statistics` API; old statistics with uppercase entry_id are safely ignored while new lowercase statistics take precedence
+- **Fixed async/await in statistics import** — `_do_import_statistics()` is now async and `async_import_statistics()` is properly awaited; resolves test failures due to non-awaited coroutine
 
 ## [0.2.0] - 2026-06-03
 

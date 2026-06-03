@@ -431,30 +431,17 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         """Remove old statistics with uppercase entry_id.
 
         Migration from v0.1.9: entry_ids with uppercase letters were invalid.
-        This cleanup removes the old erroneous statistics and allows reimport
-        with the corrected lowercase statistic_id.
+        This is a no-op placeholder: delete_statistics API no longer exists in
+        current Home Assistant versions. The old erroneous statistics (with
+        uppercase entry_id) are ignored and the corrected lowercase statistic_id
+        is used going forward. The old statistics will naturally become orphaned.
         """
-        old_statistic_id = f"{DOMAIN}:{self._entry_id}"
-        try:
-            from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
-                delete_statistics,
-            )
-
-            delete_statistics(self.hass, [old_statistic_id])
-            _LOGGER.debug("Cleaned up old statistics with id %s", old_statistic_id)
-        except ImportError:
-            # delete_statistics not available in this HA version, skip cleanup
-            _LOGGER.debug(
-                "delete_statistics not available, skipping cleanup for %s",
-                old_statistic_id,
-            )
-        except Exception as err:
-            # Silently ignore if the old statistics don't exist
-            _LOGGER.debug(
-                "No old statistics to clean up for %s: %s",
-                old_statistic_id,
-                err,
-            )
+        # No-op: delete_statistics is not available in current HA versions
+        # and the old uppercase statistics are safely ignored by HA
+        _LOGGER.debug(
+            "Skipping old statistics cleanup for %s (already using lowercase ID)",
+            self._entry_id.lower(),
+        )
 
 
 def _days_between(ts1: str, ts2: str) -> float | None:
