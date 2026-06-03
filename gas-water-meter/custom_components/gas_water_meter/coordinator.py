@@ -350,7 +350,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         try:
             # Clean up old statistics with uppercase entry_id (migration from v0.1.9)
             await self._async_cleanup_old_statistics()
-            self._do_import_statistics(readings)
+            await self._do_import_statistics(readings)
         except Exception:
             _LOGGER.warning(
                 "Failed to import reading statistics for %s",
@@ -358,7 +358,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
                 exc_info=True,
             )
 
-    def _do_import_statistics(self, readings: list[dict[str, Any]]) -> None:
+    async def _do_import_statistics(self, readings: list[dict[str, Any]]) -> None:
         """Build and import external statistics from DB readings.
 
         Each reading produces one ``StatisticData`` entry whose ``start``
@@ -417,7 +417,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         )
 
-        async_import_statistics(self.hass, metadata, stats)
+        await async_import_statistics(self.hass, metadata, stats)
 
         _LOGGER.debug(
             "Imported %d statistics for %s (statistic_id=%s:%s)",
@@ -434,14 +434,20 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         This cleanup removes the old erroneous statistics and allows reimport
         with the corrected lowercase statistic_id.
         """
-        from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
-            delete_statistics,
-        )
-
         old_statistic_id = f"{DOMAIN}:{self._entry_id}"
         try:
+            from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
+                delete_statistics,
+            )
+
             delete_statistics(self.hass, [old_statistic_id])
             _LOGGER.debug("Cleaned up old statistics with id %s", old_statistic_id)
+        except ImportError:
+            # delete_statistics not available in this HA version, skip cleanup
+            _LOGGER.debug(
+                "delete_statistics not available, skipping cleanup for %s",
+                old_statistic_id,
+            )
         except Exception as err:
             # Silently ignore if the old statistics don't exist
             _LOGGER.debug(
