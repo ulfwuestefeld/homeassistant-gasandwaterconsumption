@@ -1,10 +1,9 @@
-"""Tests for the Gas & Water Meter coordinator (projection + cost logic)."""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import pytest
 from custom_components.gas_water_meter.const import DAYS_PER_MONTH, DAYS_PER_YEAR
 from custom_components.gas_water_meter.coordinator import (
     _UPDATE_INTERVAL,
@@ -17,8 +16,32 @@ from custom_components.gas_water_meter.websocket import (
     _refresh_coordinator,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.recorder import DATA_INSTANCE
 
 from .conftest import MOCK_GAS_CONFIG, MOCK_WATER_CONFIG
+
+
+@pytest.fixture(autouse=True)
+def _enable_recorder_instance(hass: HomeAssistant) -> None:
+    hass.data[DATA_INSTANCE] = MagicMock()
+    hass.data[DATA_INSTANCE].async_import_statistics = MagicMock(return_value=None)
+    with (
+        patch(
+            "homeassistant.components.recorder.statistics.list_statistic_ids",
+            return_value=[],
+        ),
+        patch(
+            "homeassistant.components.recorder.statistics.clear_statistics",
+            return_value=None,
+        ),
+    ):
+        yield
+
+
+def _ensure_recorder_instance(hass: HomeAssistant) -> None:
+    hass.data[DATA_INSTANCE] = MagicMock()
+    hass.data[DATA_INSTANCE].async_import_statistics = MagicMock(return_value=None)
+
 
 try:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -878,7 +901,9 @@ async def test_statistics_imported_with_reading_timestamps(hass: HomeAssistant, 
     )
     entry.add_to_hass(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+    _ensure_recorder_instance(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
         coordinator = MeterCoordinator(hass, entry, mock_db)
         await coordinator.async_refresh()
 
@@ -896,6 +921,48 @@ async def test_statistics_imported_with_reading_timestamps(hass: HomeAssistant, 
 
         # 3 readings → 3 statistics entries
         assert len(stats) == 3
+
+
+async def test_statistics_uppercase_entry_id_is_lowercased_for_import(
+    hass: HomeAssistant, mock_db: MeterDatabase
+) -> None:
+    """Uppercase entry IDs are normalized when importing statistics."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="TEST_ENTRY_UPPER",
+        title="Gas Meter - Kitchen",
+    )
+    entry.add_to_hass(hass)
+    await mock_db.async_add_reading(
+        "TEST_ENTRY_UPPER",
+        "GAS-12345",
+        100.0,
+        "2026-01-01T10:00:00+00:00",
+    )
+    await mock_db.async_add_reading(
+        "TEST_ENTRY_UPPER",
+        "GAS-12345",
+        110.5,
+        "2026-01-15T10:00:00+00:00",
+    )
+    await mock_db.async_add_reading(
+        "TEST_ENTRY_UPPER",
+        "GAS-12345",
+        125.3,
+        "2026-02-01T10:00:00+00:00",
+    )
+
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
+        coordinator = MeterCoordinator(hass, entry, mock_db)
+        await coordinator.async_refresh()
+
+        assert mock_import.called
+        call_args = mock_import.call_args
+        metadata = call_args[0][1]
+        stats = list(call_args[0][2])
+        assert metadata["statistic_id"] == "gas_water_meter:reading_test_entry_upper"
 
         # Verify timestamps match reading dates (start of hour)
         expected_starts = [
@@ -917,6 +984,64 @@ async def test_statistics_imported_with_reading_timestamps(hass: HomeAssistant, 
         assert stats[2]["sum"] == 25.3  # 10.5 + (125.3 - 110.5)
 
 
+async def test_statistics_uppercase_entry_id_cleans_up_legacy_statistic_id(
+    hass: HomeAssistant, mock_db: MeterDatabase
+) -> None:
+    """Legacy uppercase statistic IDs are removed before import."""
+    entry = MockConfigEntry(
+        domain="gas_water_meter",
+        data=MOCK_GAS_CONFIG,
+        unique_id="gas_water_meter_gas_GAS-12345",
+        entry_id="TEST_ENTRY_UPPER",
+        title="Gas Meter - Kitchen",
+    )
+    entry.add_to_hass(hass)
+    await mock_db.async_add_reading(
+        "TEST_ENTRY_UPPER",
+        "GAS-12345",
+        100.0,
+        "2026-01-01T10:00:00+00:00",
+    )
+    await mock_db.async_add_reading(
+        "TEST_ENTRY_UPPER",
+        "GAS-12345",
+        110.5,
+        "2026-01-15T10:00:00+00:00",
+    )
+    await mock_db.async_add_reading(
+        "TEST_ENTRY_UPPER",
+        "GAS-12345",
+        125.3,
+        "2026-02-01T10:00:00+00:00",
+    )
+
+    with (
+        patch(
+            "homeassistant.components.recorder.statistics.list_statistic_ids",
+            return_value=[{"statistic_id": "gas_water_meter:reading_TEST_ENTRY_UPPER"}],
+        ) as mock_list,
+        patch(
+            "homeassistant.components.recorder.statistics.clear_statistics",
+            return_value=None,
+        ) as mock_clear,
+        patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import,
+    ):
+        coordinator = MeterCoordinator(hass, entry, mock_db)
+        await coordinator.async_refresh()
+
+        mock_list.assert_called_once_with(
+            hass,
+            {"gas_water_meter:reading_TEST_ENTRY_UPPER"},
+        )
+        mock_clear.assert_called_once_with(
+            hass.data[DATA_INSTANCE],
+            ["gas_water_meter:reading_TEST_ENTRY_UPPER"],
+        )
+        assert mock_import.called
+        metadata = mock_import.call_args[0][1]
+        assert metadata["statistic_id"] == "gas_water_meter:reading_test_entry_upper"
+
+
 async def test_statistics_handles_meter_number_change(hass: HomeAssistant, mock_db_empty: MeterDatabase) -> None:
     """Meter replacement resets delta but running sum continues."""
     db = mock_db_empty
@@ -936,7 +1061,7 @@ async def test_statistics_handles_meter_number_change(hass: HomeAssistant, mock_
     )
     entry.add_to_hass(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
         coordinator = MeterCoordinator(hass, entry, db)
         await coordinator.async_refresh()
 
@@ -967,7 +1092,7 @@ async def test_statistics_change_detection_skips_reimport(hass: HomeAssistant, m
     )
     entry.add_to_hass(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
         coordinator = MeterCoordinator(hass, entry, mock_db)
 
         # First refresh → import happens
@@ -990,7 +1115,9 @@ async def test_statistics_reimported_after_new_reading(hass: HomeAssistant, mock
     )
     entry.add_to_hass(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+    _ensure_recorder_instance(hass)
+
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
         coordinator = MeterCoordinator(hass, entry, mock_db)
         await coordinator.async_refresh()
         assert mock_import.call_count == 1
@@ -1019,7 +1146,7 @@ async def test_statistics_empty_readings_no_import(hass: HomeAssistant, mock_db_
     )
     entry.add_to_hass(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
         coordinator = MeterCoordinator(hass, entry, mock_db_empty)
         await coordinator.async_refresh()
 
@@ -1044,7 +1171,7 @@ async def test_statistics_hourly_deduplication(hass: HomeAssistant, mock_db_empt
     )
     entry.add_to_hass(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
         coordinator = MeterCoordinator(hass, entry, db)
         await coordinator.async_refresh()
 
@@ -1079,7 +1206,7 @@ async def test_statistics_water_meter(hass: HomeAssistant, mock_db_empty: MeterD
     )
     entry.add_to_hass(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
         coordinator = MeterCoordinator(hass, entry, db)
         await coordinator.async_refresh()
 
@@ -1115,7 +1242,7 @@ async def test_statistics_negative_delta_ignored(hass: HomeAssistant, mock_db_em
     )
     entry.add_to_hass(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
         coordinator = MeterCoordinator(hass, entry, db)
         await coordinator.async_refresh()
 
@@ -1324,7 +1451,7 @@ async def test_statistics_uses_entry_title(hass: HomeAssistant, mock_db: MeterDa
     )
     entry.add_to_hass(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_import_statistics") as mock_import:
+    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
         coordinator = MeterCoordinator(hass, entry, mock_db)
         await coordinator.async_refresh()
 

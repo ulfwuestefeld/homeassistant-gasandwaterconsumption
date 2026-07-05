@@ -374,8 +374,16 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             StatisticMetaData,
         )
         from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
-            async_import_statistics,
+            async_add_external_statistics,
         )
+        from homeassistant.helpers.recorder import DATA_INSTANCE
+
+        if DATA_INSTANCE not in self.hass.data:
+            _LOGGER.debug(
+                "Recorder instance not loaded yet; skipping statistics import for %s",
+                self._entry_id,
+            )
+            return
 
         sorted_readings = sorted(readings, key=lambda r: r["timestamp"])
 
@@ -417,7 +425,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         )
 
-        await async_import_statistics(self.hass, metadata, stats)
+        async_add_external_statistics(self.hass, metadata, stats)
 
         _LOGGER.debug(
             "Imported %d statistics for %s (statistic_id=%s:reading_%s)",
@@ -428,46 +436,51 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         )
 
     async def _async_cleanup_old_statistics(self) -> None:
-        """Remove old statistics with invalid format.
+        """Remove old statistics with uppercase entry_id.
 
-        Migration from v0.1.9 and earlier versions:
-        - v0.1.9: statistic_id was "{DOMAIN}:{entry_id_lowercase}" (invalid - begins with digit)
-        - v0.1.10+: statistic_id is "{DOMAIN}:reading_{entry_id_lowercase}" (valid - begins with letter)
-
-        This function attempts to delete the old invalid statistics entries if the
-        deletion API is available. If not, they are silently ignored (Home Assistant
-        will ignore non-existent statistic_ids on import).
+        Migration from v0.1.9: entry_ids with uppercase letters were invalid.
+        The legacy uppercase statistic IDs are deleted so the corrected
+        lowercase statistic_id can be imported cleanly.
         """
+        from homeassistant.components.recorder import get_instance as get_recorder_instance
+        from homeassistant.components.recorder.statistics import (
+            clear_statistics,
+            list_statistic_ids,
+        )
+        from homeassistant.helpers.recorder import DATA_INSTANCE
+
+        if DATA_INSTANCE not in self.hass.data:
+            _LOGGER.debug(
+                "Recorder instance not loaded yet; skipping old uppercase statistics cleanup for %s",
+                self._entry_id,
+            )
+            return
+
+        lower_id = self._entry_id.lower()
+        upper_id = self._entry_id.upper()
+        if lower_id == upper_id:
+            _LOGGER.debug(
+                "Skipping old statistics cleanup for %s (entry_id already case-normalized)",
+                self._entry_id,
+            )
+            return
+
+        old_statistic_id = f"{DOMAIN}:reading_{upper_id}"
         try:
-            from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
-                async_delete_statistics,
-            )
-
-            # Old invalid format (from v0.1.9)
-            old_statistic_id = f"{DOMAIN}:{self._entry_id.lower()}"
-
-            # Try to delete the old statistics entry
-            await async_delete_statistics(self.hass, [old_statistic_id])
-
-            _LOGGER.debug(
-                "Migrated statistics for %s (removed old format: %s, will use new format: %s:reading_%s)",
+            existing = list_statistic_ids(self.hass, {old_statistic_id})
+            if any(stat["statistic_id"] == old_statistic_id for stat in existing):
+                recorder = get_recorder_instance(self.hass)
+                clear_statistics(recorder, [old_statistic_id])
+                _LOGGER.info(
+                    "Cleared old uppercase statistic_id %s for entry %s",
+                    old_statistic_id,
+                    self._entry_id,
+                )
+        except Exception:
+            _LOGGER.warning(
+                "Failed to cleanup old uppercase statistics for %s",
                 self._entry_id,
-                old_statistic_id,
-                DOMAIN,
-                self._entry_id.lower(),
-            )
-        except ImportError:
-            # async_delete_statistics not available in this HA version
-            _LOGGER.debug(
-                "Statistics cleanup skipped for %s (async_delete_statistics not available)",
-                self._entry_id,
-            )
-        except Exception as err:
-            # Log but don't fail - old statistics being left behind is not critical
-            _LOGGER.debug(
-                "Failed to clean up old statistics for %s: %s",
-                self._entry_id,
-                err,
+                exc_info=True,
             )
 
 
