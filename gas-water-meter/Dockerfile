@@ -1,8 +1,16 @@
 ## Use buildx-provided TARGETARCH to pick the correct base image for
 ## the target architecture. This makes the image self-contained and
 ## avoids relying on external build metadata.
+ARG BUILD_FROM
+ARG BUILD_ARCH
 ARG TARGETARCH
-FROM ghcr.io/home-assistant/${TARGETARCH}-base:latest
+# Prefer Supervisor-provided BUILD_FROM when available.
+# If not provided, prefer an image derived from the supervisor's
+# `BUILD_ARCH` when available (Supervisor passes e.g. `aarch64`) and
+# otherwise fall back to `TARGETARCH` (buildx-provided, e.g. `arm64`).
+# Use the first available of these values to construct the fallback
+# base image name for Home Assistant's ghcr images.
+FROM ${BUILD_FROM:-ghcr.io/home-assistant/${BUILD_ARCH:-${TARGETARCH}}-base:latest}
 
 
 # Install runtime dependencies
