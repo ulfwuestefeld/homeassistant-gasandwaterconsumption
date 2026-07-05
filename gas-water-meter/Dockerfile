@@ -1,8 +1,9 @@
-ARG BUILD_FROM
-FROM ${BUILD_FROM}
+## Use buildx-provided TARGETARCH to pick the correct base image for
+## the target architecture. This makes the image self-contained and
+## avoids relying on external build metadata.
+ARG TARGETARCH
+FROM ghcr.io/home-assistant/${TARGETARCH}-base:latest
 
-# `BUILD_FROM` is provided by the Home Assistant add-on build environment.
-# Supported architectures are declared in config.yaml.
 
 # Install runtime dependencies
 RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-eng tesseract-ocr-data-deu dos2unix libheif
