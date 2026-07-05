@@ -8,12 +8,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.components.recorder import get_instance as get_recorder_instance
+from homeassistant.components.recorder import statistics as recorder_statistics
 from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
-from homeassistant.components.recorder.statistics import (
-    async_add_external_statistics,
-    clear_statistics,
-    list_statistic_ids,
-)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant
@@ -424,7 +420,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         )
 
-        async_add_external_statistics(self.hass, metadata, stats)
+        recorder_statistics.async_add_external_statistics(self.hass, metadata, stats)
 
         _LOGGER.debug(
             "Imported %d statistics for %s (statistic_id=%s:reading_%s)",
@@ -459,10 +455,10 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
         old_statistic_id = f"{DOMAIN}:reading_{upper_id}"
         try:
-            existing = list_statistic_ids(self.hass, {old_statistic_id})
+            existing = recorder_statistics.list_statistic_ids(self.hass, {old_statistic_id})
             if any(stat["statistic_id"] == old_statistic_id for stat in existing):
                 recorder = get_recorder_instance(self.hass)
-                clear_statistics(recorder, [old_statistic_id])
+                recorder_statistics.clear_statistics(recorder, [old_statistic_id])
                 _LOGGER.info(
                     "Cleared old uppercase statistic_id %s for entry %s",
                     old_statistic_id,
