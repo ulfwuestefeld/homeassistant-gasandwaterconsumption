@@ -7,9 +7,17 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from homeassistant.components.recorder import get_instance as get_recorder_instance
+from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
+from homeassistant.components.recorder.statistics import (
+    async_add_external_statistics,
+    clear_statistics,
+    list_statistic_ids,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.recorder import DATA_INSTANCE
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -369,15 +377,6 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
         If two readings fall into the same hour, the later one wins.
         """
-        from homeassistant.components.recorder.models import (  # noqa: PLC0415
-            StatisticData,
-            StatisticMetaData,
-        )
-        from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
-            async_add_external_statistics,
-        )
-        from homeassistant.helpers.recorder import DATA_INSTANCE
-
         if DATA_INSTANCE not in self.hass.data:
             _LOGGER.debug(
                 "Recorder instance not loaded yet; skipping statistics import for %s",
@@ -442,13 +441,6 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         The legacy uppercase statistic IDs are deleted so the corrected
         lowercase statistic_id can be imported cleanly.
         """
-        from homeassistant.components.recorder import get_instance as get_recorder_instance
-        from homeassistant.components.recorder.statistics import (
-            clear_statistics,
-            list_statistic_ids,
-        )
-        from homeassistant.helpers.recorder import DATA_INSTANCE
-
         if DATA_INSTANCE not in self.hass.data:
             _LOGGER.debug(
                 "Recorder instance not loaded yet; skipping old uppercase statistics cleanup for %s",
