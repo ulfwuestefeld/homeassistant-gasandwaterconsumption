@@ -5,7 +5,13 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.5] - 2026-06-03
+## [0.2.6] - 2026-07-05
+
+### Fixed
+
+- **Build** — Moved build parameters from build.yaml to dockerfile
+
+## [0.2.5] - 2026-07-05
 
 ### Fixed
 

@@ -1,6 +1,9 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
+# `BUILD_FROM` is provided by the Home Assistant add-on build environment.
+# Supported architectures are declared in config.yaml.
+
 # Install runtime dependencies
 RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-eng tesseract-ocr-data-deu dos2unix libheif
 
