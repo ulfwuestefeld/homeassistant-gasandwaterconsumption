@@ -43,6 +43,9 @@ select = [
 ignore = [
     "TRY003",  # long exception messages are fine
     "S101",    # assert is fine in tests
+    "S404",    # subprocess import is intentional and bounded here
+    "S603",    # package manager calls are validated and fixed to trusted executables
+    "S608",    # dynamic SQL uses a closed whitelist with bound parameters
 ]
 
 [tool.ruff.lint.per-file-ignores]
