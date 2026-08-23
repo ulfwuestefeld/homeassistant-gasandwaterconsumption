@@ -6,7 +6,7 @@
         "component": {
             "type": "application",
             "name": "gas_water_meter",
-            "version": "0.2.9",
+            "version": "0.3.2",
             "description": "Home Assistant add-on and custom integration for manual gas and water meter reading entry with OCR, projection, and cost tracking",
             "licenses": [
                 {
@@ -77,6 +77,36 @@
             ],
             "purl": "pkg:npm/chart.js",
             "scope": "required"
+        },
+        {
+            "type": "library",
+            "name": "rollup",
+            "version": "^4.59.0",
+            "description": "JavaScript bundler",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:npm/rollup",
+            "scope": "excluded"
+        },
+        {
+            "type": "library",
+            "name": "@rollup/plugin-terser",
+            "version": "^1.0.0",
+            "description": "Terser minification plugin for Rollup",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:npm/%40rollup/plugin-terser",
+            "scope": "excluded"
         },
         {
             "type": "library",

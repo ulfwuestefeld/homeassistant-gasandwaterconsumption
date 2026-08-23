@@ -5,6 +5,23 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-08-24
+
+### Fixed
+
+- **Frontend dependency remediation** — updated vulnerable transitive package paths and added security overrides to remove advisory findings from the npm dependency graph.
+- **SBOM/FOSS documentation refresh** — synchronized the dependency inventory with the current frontend toolchain and release state.
+- **Release metadata consistency** — aligned version numbers across integration, add-on config, device metadata, and project docs.
+
+### Changed
+
+- **Release bump** — integration and add-on versions updated to `0.3.2`.
+- **Frontend toolchain** — upgraded the build/test stack to current patched versions: `rollup`, `@rollup/plugin-terser`, and `@web/test-runner`.
+
+### Security
+
+- **Dependency hardening** — patched npm advisories by upgrading vulnerable direct and transitive packages and pinning the remaining high-risk transitives via overrides.
+
 ## [0.3.1] - 2026-08-24
 
 ### Fixed

@@ -2,6 +2,10 @@
 
 This document lists all third-party open source components used by the Gas & Water Meter add-on and integration.
 
+## Project Version
+
+0.3.2
+
 ## Runtime Dependencies (Python)
 
 | Component | Version | License | URL |
@@ -17,6 +21,29 @@ This document lists all third-party open source components used by the Gas & Wat
 |-----------|---------|---------|-----|
 | lit | ^3.2.0 | BSD-3-Clause | https://github.com/lit/lit |
 | chart.js | ^4.4.0 | MIT | https://github.com/chartjs/Chart.js |
+
+## Frontend Build & Test Dependencies
+
+| Component | Version | License | URL |
+|-----------|---------|---------|-----|
+| rollup | ^4.59.0 | MIT | https://github.com/rollup/rollup |
+| @rollup/plugin-node-resolve | ^16.0.0 | MIT | https://github.com/rollup/plugins |
+| @rollup/plugin-terser | ^1.0.0 | MIT | https://github.com/rollup/plugins |
+| @web/test-runner | ^1.0.0 | MIT | https://github.com/modernweb-dev/web |
+| @web/test-runner-commands | ^0.9.0 | MIT | https://github.com/modernweb-dev/web |
+| @open-wc/testing | ^4.0.0 | MIT | https://github.com/open-wc/open-wc |
+
+### Security override pins
+
+These transitive packages were explicitly pinned to patched versions to remove known advisories from the installed npm graph:
+
+| Package | Version | Reason |
+|---------|---------|--------|
+| koa | ^2.16.4 | Mitigates known request smuggling / middleware vulnerabilities |
+| nanoid | ^3.3.18 | Mitigates predictable ID generation issues |
+| picomatch | ^4.0.4 | Mitigates ReDoS / path traversal exposure in vulnerable versions |
+| qs | ^6.15.2 | Mitigates prototype pollution and parsing issues |
+| ws | ^8.21.0 | Mitigates DoS / parser issues in old websocket versions |
 
 ## Add-on Container Dependencies
 

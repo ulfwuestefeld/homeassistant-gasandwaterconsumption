@@ -1,12 +1,12 @@
 # Software Bill of Materials (SBOM)
 
-## Gas & Water Meter Add-on v0.2.9
+## Gas & Water Meter Add-on v0.3.2
 
 ### Metadata
 
 - **Name**: Gas & Water Meter
 - **Domain**: gas_water_meter
-- **Version**: 0.2.9
+- **Version**: 0.3.2
 - **Type**: Home Assistant Add-on + Custom Integration
 - **Python**: >= 3.12
 - **Home Assistant**: >= 2024.1.0
@@ -36,6 +36,27 @@
 | lit | ^3.2.0 | Runtime (bundled) | BSD-3-Clause |
 | chart.js | ^4.4.0 | Runtime (bundled) | MIT |
 
+### Frontend Build & Test Dependencies
+
+| Package | Version Constraint | Type | License |
+|---------|--------------------|------|---------|
+| rollup | ^4.59.0 | Build tool | MIT |
+| @rollup/plugin-node-resolve | ^16.0.0 | Build tool | MIT |
+| @rollup/plugin-terser | ^1.0.0 | Build tool | MIT |
+| @web/test-runner | ^1.0.0 | Test runner | MIT |
+| @web/test-runner-commands | ^0.9.0 | Test helper | MIT |
+| @open-wc/testing | ^4.0.0 | Test utility | MIT |
+
+### Security Hardening Overrides
+
+| Package | Version Constraint | Purpose |
+|---------|--------------------|---------|
+| koa | ^2.16.4 | Pinned to patched middleware version |
+| nanoid | ^3.3.18 | Pinned to patched ID generator |
+| picomatch | ^4.0.4 | Pinned to patched glob matching version |
+| qs | ^6.15.2 | Pinned to patched query-string parser |
+| ws | ^8.21.0 | Pinned to patched websocket implementation |
+
 ### HA Core Built-in Dependencies Used
 
 | Package | Usage |
@@ -60,15 +81,15 @@
 
 | Package | Version Constraint | License |
 |---------|--------------------|---------|
-| rollup | ^4.0.0 | MIT |
+| rollup | ^4.59.0 | MIT |
 | @rollup/plugin-node-resolve | ^16.0.0 | MIT |
-| @rollup/plugin-terser | ^0.4.0 | MIT |
+| @rollup/plugin-terser | ^1.0.0 | MIT |
 
 ### Frontend Test Dependencies
 
 | Package | Version Constraint | License |
 |---------|--------------------|---------|
-| @web/test-runner | ^0.20.2 | MIT |
+| @web/test-runner | ^1.0.0 | MIT |
 | @open-wc/testing | ^4.0.0 | MIT |
 | @web/test-runner-commands | ^0.9.0 | MIT |
 
