@@ -5,6 +5,22 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-08-24
+
+### Fixed
+
+- **Home Assistant add-on compatibility** — replaced deprecated `config` map access with `homeassistant_config`.
+- **CI workflow compatibility** — updated GitHub Actions Node and artifact steps to current supported versions to avoid Node 20 deprecation warnings.
+- **Project version consistency** — synchronized release metadata across the integration, add-on config, and device metadata.
+
+### Changed
+
+- **Release bump** — integration and add-on versions updated to `0.3.1`.
+
+### Security
+
+- No security changes in this release.
+
 ## [0.3.0] - 2026-08-24
 
 ### Fixed
