@@ -6,7 +6,7 @@ This file provides custom instructions for GitHub Copilot to ensure consistent c
 
 **Project**: Gas & Water Meter Home Assistant Add-on
 **Domain**: `gas_water_meter`
-**Version**: 0.1.9
+**Version**: 0.3.0
 **Python**: >= 3.12
 **Pattern**: Async-first, config-entry-based, coordinator pattern
 **Test Framework**: pytest with 274+ tests
@@ -403,5 +403,5 @@ For Home Assistant-specific patterns, reference the `gas-water-meter-project` Cu
 
 ---
 
-**Last Updated**: 2026-02-13
+**Last Updated**: 2026-08-24
 **For issues or updates to these instructions, edit `.github/copilot-instructions.md`**

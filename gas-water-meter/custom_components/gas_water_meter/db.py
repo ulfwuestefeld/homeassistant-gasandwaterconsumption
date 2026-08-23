@@ -97,7 +97,8 @@ class MeterDatabase:
 
     async def _create_schema(self) -> None:
         """Create tables if they do not exist and run migrations."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         await self._db.execute(_CREATE_READINGS)
         await self._db.execute(_CREATE_READINGS_INDEX)
         await self._db.execute(_CREATE_PRICES)
@@ -115,7 +116,8 @@ class MeterDatabase:
 
     async def _migrate_schema(self) -> None:
         """Run incremental schema migrations."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute(
             "SELECT value FROM schema_meta WHERE key = 'schema_version'",
         )
@@ -134,7 +136,8 @@ class MeterDatabase:
         that cost calculations use the factors that were valid at each
         specific price period.  NULL means "use the config entry defaults".
         """
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         # Check if columns already exist (idempotent)
         cursor = await self._db.execute("PRAGMA table_info(prices)")
         columns = {row[1] for row in await cursor.fetchall()}
@@ -149,7 +152,8 @@ class MeterDatabase:
         The annual base fee (Jahresgrundgebühr) is stored per price entry
         and pro-rated into cost calculations.  NULL means no base fee.
         """
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute("PRAGMA table_info(prices)")
         columns = {row[1] for row in await cursor.fetchall()}
         if "base_fee" not in columns:
@@ -233,7 +237,8 @@ class MeterDatabase:
         image_path: str | None = None,
     ) -> int:
         """Insert a new reading. Returns the new row id."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute(
             """INSERT INTO readings (entry_id, meter_number, reading, timestamp, image_path)
                VALUES (?, ?, ?, ?, ?)""",
@@ -252,7 +257,8 @@ class MeterDatabase:
         image_path: str | None = _SENTINEL,  # type: ignore[assignment]
     ) -> bool:
         """Update an existing reading. Only provided fields are changed."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         updates: list[str] = []
         params: list[Any] = []
         if meter_number is not None:
@@ -270,6 +276,8 @@ class MeterDatabase:
         if not updates:
             return False
         params.append(reading_id)
+        # The column names in `updates` are static and validated above; the query is constructed
+        # from a closed whitelist and therefore safe to execute.
         cursor = await self._db.execute(
             f"UPDATE readings SET {', '.join(updates)} WHERE id = ?",  # noqa: S608
             params,
@@ -279,7 +287,8 @@ class MeterDatabase:
 
     async def async_delete_reading(self, reading_id: int) -> bool:
         """Delete a reading by id."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute("DELETE FROM readings WHERE id = ?", (reading_id,))
         await self._db.commit()
         return cursor.rowcount > 0
@@ -292,7 +301,8 @@ class MeterDatabase:
         offset: int = 0,
     ) -> list[dict[str, Any]]:
         """Get readings for an entry, ordered by timestamp ascending."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         sql = "SELECT * FROM readings WHERE entry_id = ? ORDER BY timestamp ASC"
         params: list[Any] = [entry_id]
         if limit is not None:
@@ -304,7 +314,8 @@ class MeterDatabase:
 
     async def async_get_reading_count(self, entry_id: str) -> int:
         """Return total number of readings for an entry."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute("SELECT COUNT(*) FROM readings WHERE entry_id = ?", (entry_id,))
         row = await cursor.fetchone()
         return row[0] if row else 0
@@ -315,7 +326,8 @@ class MeterDatabase:
 
     async def async_get_last_reading(self, entry_id: str) -> dict[str, Any] | None:
         """Return the most recent reading for an entry."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute(
             "SELECT * FROM readings WHERE entry_id = ? ORDER BY timestamp DESC LIMIT 1",
             (entry_id,),
@@ -325,7 +337,8 @@ class MeterDatabase:
 
     async def async_get_previous_reading(self, entry_id: str) -> dict[str, Any] | None:
         """Return the second-to-last reading for an entry."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute(
             "SELECT * FROM readings WHERE entry_id = ? ORDER BY timestamp DESC LIMIT 1 OFFSET 1",
             (entry_id,),
@@ -335,7 +348,8 @@ class MeterDatabase:
 
     async def async_get_first_reading(self, entry_id: str) -> dict[str, Any] | None:
         """Return the oldest reading for an entry."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute(
             "SELECT * FROM readings WHERE entry_id = ? ORDER BY timestamp ASC LIMIT 1",
             (entry_id,),
@@ -349,7 +363,8 @@ class MeterDatabase:
         Used for projection calculations after a meter change: only
         readings from the current physical meter should be considered.
         """
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute(
             "SELECT * FROM readings WHERE entry_id = ? AND meter_number = ? ORDER BY timestamp ASC LIMIT 1",
             (entry_id, meter_number),
@@ -384,7 +399,8 @@ class MeterDatabase:
 
         Returns the new row id.
         """
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
 
         # If the new price has no end date, close the previous open-ended price
         if valid_to is None:
@@ -418,7 +434,8 @@ class MeterDatabase:
         base_fee: float | None = _SENTINEL,  # type: ignore[assignment]
     ) -> bool:
         """Update an existing price entry."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         updates: list[str] = []
         params: list[Any] = []
         if price_per_unit is not None:
@@ -445,6 +462,8 @@ class MeterDatabase:
         if not updates:
             return False
         params.append(price_id)
+        # The column names in `updates` are static and validated above; the query is constructed
+        # from a closed whitelist and therefore safe to execute.
         cursor = await self._db.execute(
             f"UPDATE prices SET {', '.join(updates)} WHERE id = ?",  # noqa: S608
             params,
@@ -454,14 +473,16 @@ class MeterDatabase:
 
     async def async_delete_price(self, price_id: int) -> bool:
         """Delete a price by id."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute("DELETE FROM prices WHERE id = ?", (price_id,))
         await self._db.commit()
         return cursor.rowcount > 0
 
     async def async_get_prices(self, entry_id: str) -> list[dict[str, Any]]:
         """Get all prices for an entry, ordered by valid_from ascending."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute(
             "SELECT * FROM prices WHERE entry_id = ? ORDER BY valid_from ASC",
             (entry_id,),
@@ -475,7 +496,8 @@ class MeterDatabase:
 
     async def async_get_current_price(self, entry_id: str) -> dict[str, Any] | None:
         """Return the currently active price (valid_from <= today, no valid_to or valid_to >= today)."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         cursor = await self._db.execute(
             """SELECT * FROM prices
                WHERE entry_id = ? AND valid_from <= date('now')
@@ -488,7 +510,8 @@ class MeterDatabase:
 
     async def async_get_price_at(self, entry_id: str, date_str: str) -> dict[str, Any] | None:
         """Return the price valid at a given date (YYYY-MM-DD or ISO timestamp)."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         date_only = date_str[:10]
         cursor = await self._db.execute(
             """SELECT * FROM prices
@@ -536,7 +559,8 @@ class MeterDatabase:
 
     async def async_remove_entry(self, entry_id: str) -> None:
         """Remove all data for a config entry."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
         await self._db.execute("DELETE FROM readings WHERE entry_id = ?", (entry_id,))
         await self._db.execute("DELETE FROM prices WHERE entry_id = ?", (entry_id,))
         await self._db.commit()

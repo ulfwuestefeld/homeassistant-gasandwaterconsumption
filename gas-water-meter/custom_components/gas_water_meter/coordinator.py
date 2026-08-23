@@ -9,7 +9,7 @@ from typing import Any
 
 from homeassistant.components.recorder import get_instance as get_recorder_instance
 from homeassistant.components.recorder import statistics as recorder_statistics
-from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
+from homeassistant.components.recorder.models import StatisticData
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant
@@ -182,69 +182,96 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
     async def _compute_data(self) -> MeterCoordinatorData:
         """Compute all derived values from DB readings and prices."""
-        data = MeterCoordinatorData(
-            meter_type=self._meter_type,
-            meter_name=self._meter_name,
-            currency=self._currency,
-        )
+        data = self._new_data()
 
         last = await self.db.async_get_last_reading(self._entry_id)
         prev = await self.db.async_get_previous_reading(self._entry_id)
-
-        # Resolve gas conversion factors from current price (or defaults).
         current_price_entry = await self.db.async_get_current_price(self._entry_id)
-        if self._meter_type == METER_TYPE_GAS:
-            cv, cf = self._resolve_gas_factors(current_price_entry)
-            data.calorific_value = cv
-            data.condition_factor = cf
-
-        # Annual base fee from current price entry (applies to all meter types)
-        if current_price_entry is not None:
-            data.current_base_fee = current_price_entry.get("base_fee")
+        self._apply_current_price_state(data, current_price_entry)
 
         if last is None:
             _LOGGER.debug("No readings found for entry %s", self._entry_id)
             return data
 
-        # Core values
+        self._apply_last_reading(data, last)
+        same_meter = prev is not None and prev["meter_number"] == last["meter_number"]
+        if same_meter:
+            await self._apply_same_meter_consumption(data, prev, last)
+
+        first = await self.db.async_get_first_reading_for_meter(self._entry_id, last["meter_number"])
+        self._apply_projection(data, first, last)
+
+        await self._compute_costs(data, prev if same_meter else None, current_price_entry)
+        return data
+
+    def _new_data(self) -> MeterCoordinatorData:
+        """Create a base data object with config-level values."""
+        data = MeterCoordinatorData(
+            meter_type=self._meter_type,
+            meter_name=self._meter_name,
+            currency=self._currency,
+        )
+        return data
+
+    def _apply_current_price_state(
+        self,
+        data: MeterCoordinatorData,
+        current_price_entry: dict[str, Any] | None,
+    ) -> None:
+        """Apply gas conversion/config defaults and base fee from the current price."""
+        if self._meter_type == METER_TYPE_GAS:
+            cv, cf = self._resolve_gas_factors(current_price_entry)
+            data.calorific_value = cv
+            data.condition_factor = cf
+
+        if current_price_entry is not None:
+            data.current_base_fee = current_price_entry.get("base_fee")
+
+    def _apply_last_reading(self, data: MeterCoordinatorData, last: dict[str, Any]) -> None:
+        """Populate the last reading fields."""
         data.reading = last["reading"]
         data.meter_number = last["meter_number"]
         data.last_entry_date = last["timestamp"]
         data.last_image_path = last.get("image_path")
 
-        # Consumption: only when the meter number matches the previous entry.
-        # A meter number change (e.g. meter replacement) resets the delta.
-        same_meter = prev is not None and prev["meter_number"] == last["meter_number"]
-        if same_meter:
-            data.consumption = round(last["reading"] - prev["reading"], 3)
-            days = _days_between(prev["timestamp"], last["timestamp"])
-            if days is not None and days > 0:
-                data.days_between = round(days, 1)
+    async def _apply_same_meter_consumption(
+        self,
+        data: MeterCoordinatorData,
+        prev: dict[str, Any],
+        last: dict[str, Any],
+    ) -> None:
+        """Compute same-meter consumption, elapsed days, and gas energy use."""
+        data.consumption = round(last["reading"] - prev["reading"], 3)
+        days = _days_between(prev["timestamp"], last["timestamp"])
+        if days is not None and days > 0:
+            data.days_between = round(days, 1)
 
-            # Gas: compute energy consumption in kWh using the price factors
-            # that were active at the start of the consumption period.
-            if self._meter_type == METER_TYPE_GAS and data.consumption is not None:
-                period_price = await self.db.async_get_price_at(self._entry_id, prev["timestamp"])
-                ecv, ecf = self._resolve_gas_factors(period_price)
-                data.energy_consumption = round(
-                    self._m3_to_kwh(data.consumption, ecv, ecf),
-                    3,
-                )
+        if self._meter_type == METER_TYPE_GAS and data.consumption is not None:
+            period_price = await self.db.async_get_price_at(self._entry_id, prev["timestamp"])
+            ecv, ecf = self._resolve_gas_factors(period_price)
+            data.energy_consumption = round(
+                self._m3_to_kwh(data.consumption, ecv, ecf),
+                3,
+            )
 
-        # Projection: based only on readings with the current meter number.
-        first = await self.db.async_get_first_reading_for_meter(self._entry_id, last["meter_number"])
-        if first is not None and first["id"] != last["id"]:
-            total_days = _days_between(first["timestamp"], last["timestamp"])
-            if total_days is not None and total_days > 0:
-                total_consumption = last["reading"] - first["reading"]
-                data.daily_average = round(total_consumption / total_days, 4)
-                data.monthly_projection = round(data.daily_average * DAYS_PER_MONTH, 3)
-                data.yearly_projection = round(data.daily_average * DAYS_PER_YEAR, 3)
+    def _apply_projection(
+        self,
+        data: MeterCoordinatorData,
+        first: dict[str, Any] | None,
+        last: dict[str, Any],
+    ) -> None:
+        """Compute daily/monthly/yearly projections based on current meter readings."""
+        if first is None or first["id"] == last["id"]:
+            return
 
-        # Cost calculations (prev is only used when same meter)
-        await self._compute_costs(data, prev if same_meter else None, current_price_entry)
+        total_days = _days_between(first["timestamp"], last["timestamp"])
+        if total_days is None or total_days <= 0:
+            return
 
-        return data
+        total_consumption = last["reading"] - first["reading"]
+        data.daily_average = round(total_consumption / total_days, 4)
+        data.monthly_projection = round(data.daily_average * DAYS_PER_MONTH, 3)
+        data.yearly_projection = round(data.daily_average * DAYS_PER_YEAR, 3)
 
     @staticmethod
     def _prorate_base_fee(base_fee: float | None, days: float) -> float:
@@ -287,18 +314,38 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         if data.consumption is not None and prev is not None:
             period_price = await self.db.async_get_price_at(self._entry_id, prev["timestamp"])
             if period_price is not None:
-                pp_cv, pp_cf = self._resolve_gas_factors(period_price)
-                consumption_cost = self._compute_cost(
-                    data.consumption,
-                    period_price["price_per_unit"],
-                    pp_cv,
-                    pp_cf,
+                consumption_cost = self._compute_consumption_cost_from_price(
+                    data.consumption, period_price
                 )
                 pp_base_fee = period_price.get("base_fee")
                 prorated = self._prorate_base_fee(pp_base_fee, data.days_between or 0.0)
                 data.last_period_cost = round(consumption_cost + prorated, 2)
 
         # Projected costs — use current price and its factors.
+        self._compute_projected_costs(data, cur_cv, cur_cf, cur_base_fee)
+
+    def _compute_consumption_cost_from_price(self, consumption_m3: float, price_entry: dict[str, Any]) -> float:
+        """Compute consumption-only cost using a price entry's factors.
+
+        Returns the cost (EUR) for the given consumption amount using the
+        price and any per-price gas conversion factors. Does not include
+        base fee pro-rating.
+        """
+        pp_cv, pp_cf = self._resolve_gas_factors(price_entry)
+        return self._compute_cost(consumption_m3, price_entry["price_per_unit"], pp_cv, pp_cf)
+
+    def _compute_projected_costs(
+        self,
+        data: MeterCoordinatorData,
+        cur_cv: float,
+        cur_cf: float,
+        cur_base_fee: float | None,
+    ) -> None:
+        """Compute monthly and yearly projected costs and store in `data`.
+
+        Uses the current price and its conversion factors. Adds prorated
+        base fee for monthly, full base fee for yearly.
+        """
         if data.monthly_projection is not None:
             consumption_cost = self._compute_cost(
                 data.monthly_projection,
@@ -411,14 +458,20 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         stats = [hourly[k] for k in sorted(hourly)]
 
         name = self.config_entry.title or self._meter_name
-        metadata = StatisticMetaData(
-            has_mean=False,
-            has_sum=True,
-            name=name,
-            source=DOMAIN,
-            statistic_id=f"{DOMAIN}:reading_{self._entry_id.lower()}",
-            unit_of_measurement=UnitOfVolume.CUBIC_METERS,
-        )
+        # Use a plain dict for metadata to remain compatible with multiple
+        # Home Assistant versions and ensure `mean_type` is present to avoid
+        # deprecation warnings (Core 2026.11 requires it).
+        metadata: dict[str, object] = {
+            "has_mean": False,
+            "has_sum": True,
+            "name": name,
+            "source": DOMAIN,
+            "statistic_id": f"{DOMAIN}:reading_{self._entry_id.lower()}",
+            "unit_of_measurement": UnitOfVolume.CUBIC_METERS,
+            # Use a stable string value for mean_type so older/newer HA
+            # releases accept the metadata without raising AttributeError.
+            "mean_type": "sum",
+        }
 
         recorder_statistics.async_add_external_statistics(self.hass, metadata, stats)
 
@@ -455,10 +508,14 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
         old_statistic_id = f"{DOMAIN}:reading_{upper_id}"
         try:
-            existing = recorder_statistics.list_statistic_ids(self.hass, {old_statistic_id})
+            existing = await self.hass.async_add_executor_job(
+                recorder_statistics.list_statistic_ids, self.hass, {old_statistic_id}
+            )
             if any(stat["statistic_id"] == old_statistic_id for stat in existing):
                 recorder = get_recorder_instance(self.hass)
-                recorder_statistics.clear_statistics(recorder, [old_statistic_id])
+                await self.hass.async_add_executor_job(
+                    recorder_statistics.clear_statistics, recorder, [old_statistic_id]
+                )
                 _LOGGER.info(
                     "Cleared old uppercase statistic_id %s for entry %s",
                     old_statistic_id,

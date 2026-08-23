@@ -24,7 +24,7 @@ gas-water-meter/
 │   ├── coordinator.py                 # MeterCoordinator - central data handler
 │   ├── db.py                          # MeterDatabase - SQLite async operations
 │   ├── http.py                        # HTTP endpoint for image uploads
-│   ├── manifest.json                  # Integration metadata (v0.1.9)
+│   ├── manifest.json                  # Integration metadata (v0.3.0)
 │   ├── ocr.py                         # Tesseract OCR for meter readings
 │   ├── sensor.py                      # 16 gas sensors + 13 water sensors
 │   ├── services.yaml                  # Service definitions
@@ -414,7 +414,7 @@ await mock_async_method()  # Works correctly
 
 ## Version Management
 
-Current version: **0.1.9** (as of 2026-02-13)
+Current version: **0.3.0** (as of 2026-08-24)
 
 Tracked in:
 - `manifest.json` - `version` field
@@ -701,7 +701,7 @@ pytest tests/ -k "test_gas_sensors"
 
 ## manifest.json Reference (Full)
 
-**Current manifest.json (v0.1.9)**:
+**Current manifest.json (v0.3.0)**:
 
 ```json
 {
@@ -715,7 +715,7 @@ pytest tests/ -k "test_gas_sensors"
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/your_repo/issues",
   "requirements": ["Pillow==12.0.0", "pytesseract==0.3.13"],
-  "version": "0.1.9"
+  "version": "0.3.0"
 }
 ```
 

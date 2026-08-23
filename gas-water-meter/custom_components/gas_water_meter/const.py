@@ -7,6 +7,11 @@ from homeassistant.const import Platform
 DOMAIN = "gas_water_meter"
 PLATFORMS = [Platform.SENSOR]
 
+# Common icon constants
+ICON_GAS_BURNER = "mdi:gas-burner"
+ICON_CURRENCY_EUR = "mdi:currency-eur"
+ICON_WATER = "mdi:water"
+
 # Config keys
 CONF_METER_TYPE = "meter_type"
 CONF_METER_NAME = "meter_name"
@@ -49,27 +54,27 @@ ICONS = {
         "energy_consumption": "mdi:lightning-bolt",
         "days_between": "mdi:calendar-range",
         "daily_average": "mdi:gas-burner",
-        "monthly_projection": "mdi:gas-burner",
-        "yearly_projection": "mdi:gas-burner",
-        "current_price": "mdi:currency-eur",
-        "last_period_cost": "mdi:currency-eur",
-        "monthly_projected_cost": "mdi:currency-eur",
-        "yearly_projected_cost": "mdi:currency-eur",
+        "monthly_projection": ICON_GAS_BURNER,
+        "yearly_projection": ICON_GAS_BURNER,
+        "current_price": ICON_CURRENCY_EUR,
+        "last_period_cost": ICON_CURRENCY_EUR,
+        "monthly_projected_cost": ICON_CURRENCY_EUR,
+        "yearly_projected_cost": ICON_CURRENCY_EUR,
     },
     METER_TYPE_WATER: {
         "device": "mdi:water",
         "reading": "mdi:water-pump",
         "meter_number": "mdi:identifier",
         "last_entry_date": "mdi:calendar-clock",
-        "consumption": "mdi:water",
+        "consumption": ICON_WATER,
         "days_between": "mdi:calendar-range",
-        "daily_average": "mdi:water",
-        "monthly_projection": "mdi:water",
-        "yearly_projection": "mdi:water",
-        "current_price": "mdi:currency-eur",
-        "last_period_cost": "mdi:currency-eur",
-        "monthly_projected_cost": "mdi:currency-eur",
-        "yearly_projected_cost": "mdi:currency-eur",
+        "daily_average": ICON_WATER,
+        "monthly_projection": ICON_WATER,
+        "yearly_projection": ICON_WATER,
+        "current_price": ICON_CURRENCY_EUR,
+        "last_period_cost": ICON_CURRENCY_EUR,
+        "monthly_projected_cost": ICON_CURRENCY_EUR,
+        "yearly_projected_cost": ICON_CURRENCY_EUR,
     },
 }
 

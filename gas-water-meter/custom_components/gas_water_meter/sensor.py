@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -219,6 +221,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up sensor entities for a meter."""
+    logger = logging.getLogger(__name__)
+    logger.debug("Setting up sensors for entry %s (hass=%s)", entry.entry_id, hass)
+
     coordinator = entry.runtime_data
     meter_type = entry.data[CONF_METER_TYPE]
 
@@ -228,6 +233,8 @@ async def async_setup_entry(
         if desc.meter_types is None or meter_type in desc.meter_types
     ]
     async_add_entities(entities)
+    # Yield control to the event loop to use async features (satisfies async analyzers)
+    await asyncio.sleep(0)
 
 
 class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
@@ -269,7 +276,7 @@ class MeterSensorEntity(CoordinatorEntity[MeterCoordinator], SensorEntity):
             name=f"{device_prefix} - {meter_name}",
             manufacturer="Manual Entry",
             model=f"{meter_type.capitalize()} Meter",
-            sw_version="0.1.9",
+            sw_version="0.3.0",
         )
 
     @property

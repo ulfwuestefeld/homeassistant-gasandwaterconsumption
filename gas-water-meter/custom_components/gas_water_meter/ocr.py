@@ -9,12 +9,8 @@ import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
-
-if TYPE_CHECKING:
-    pass
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,12 +81,14 @@ def _install_tesseract() -> bool:
         return True
 
     # --- Alpine Linux (apk) - typical for Home Assistant OS ---
-    if shutil.which("apk"):
+    apk_exec = shutil.which("apk")
+    if apk_exec:
         try:
             _LOGGER.info("Installing tesseract-ocr via apk (Alpine)")
-            subprocess.run(
-                [  # noqa: S607
-                    "apk",
+            # Use full executable path when available to avoid partial-path starts
+            subprocess.run(  # noqa: S603  # static package manager invocation with validated executable path
+                [
+                    apk_exec,
                     "add",
                     "--no-cache",
                     "tesseract-ocr",
@@ -108,18 +106,19 @@ def _install_tesseract() -> bool:
             return True
 
     # --- Debian / Ubuntu (apt-get) ---
-    if shutil.which("apt-get"):
+    apt_exec = shutil.which("apt-get")
+    if apt_exec:
         try:
             _LOGGER.info("Installing tesseract-ocr via apt-get (Debian)")
-            subprocess.run(
-                ["apt-get", "update", "-qq"],  # noqa: S607
+            subprocess.run(  # noqa: S603  # static apt-get invocation with validated executable path
+                [apt_exec, "update", "-qq"],
                 check=True,
                 capture_output=True,
                 timeout=60,
             )
-            subprocess.run(
-                [  # noqa: S607
-                    "apt-get",
+            subprocess.run(  # noqa: S603  # static apt-get invocation with validated executable path
+                [
+                    apt_exec,
                     "install",
                     "-y",
                     "-qq",

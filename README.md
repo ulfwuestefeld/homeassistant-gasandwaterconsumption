@@ -217,6 +217,86 @@ npm run build
 
 MIT License. See [FOSS.md](FOSS.md) for third-party licenses.
 
+## Native dependencies
+
+The integration requires a couple of native libraries on the host for optional features:
+
+- `tesseract` (Tesseract OCR binary): required when using OCR via `pytesseract`. Install via your OS package manager:
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install -y tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng
+
+# Alpine (used in some HA containers)
+apk add --no-cache tesseract-ocr tesseract-ocr-eng tesseract-ocr-deu
+
+# macOS (Homebrew)
+brew install tesseract
+```
+
+- `libheif` (native library): required for HEIC/HEIF image support via `pillow-heif`. On many distributions it is provided as `libheif` or `libheif-dev`:
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install -y libheif1 libheif-dev
+
+# Alpine
+apk add --no-cache libheif
+
+# macOS (Homebrew)
+brew install libheif
+```
+
+Note: The add-on Dockerfile bundles `tesseract` and `pillow-heif` for the pre-built add-on image. If you install the integration in a generic Home Assistant Core environment, ensure the native binaries are present for OCR/HEIC features to work.
+
 ## Version
 
-0.1.9 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.3.0 — See [CHANGELOG.md](CHANGELOG.md) for details.
+
+## Tesseract Installation — Hinweise und Empfehlungen
+
+Die Integration versucht in einigen Umgebungen (z. B. beim Start in einem Add-on) einen automatischen Installationsversuch der System-Binaries. Automatische Installationen sind aber nicht zuverlässig in allen Umgebungen und können in betreuten / restriktiven Systemen fehlschlagen. Wir empfehlen deshalb, `tesseract` manuell auf dem Host bzw. im Container bereitzustellen.
+
+- Warum manuell installieren: automatische Installationsversuche können in CI-, Container- oder HAOS-Umgebungen unterbrochen oder verboten sein. Eine manuelle Installation vermeidet Laufzeitprobleme und ist reproduzierbar.
+
+- Empfohlene Installationsbefehle (Auswahl):
+
+  - Debian / Ubuntu:
+
+    ```bash
+    sudo apt-get update && sudo apt-get install -y \
+      tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng
+    ```
+
+  - Alpine (z. B. Home Assistant OS / Add-on base):
+
+    ```bash
+    apk add --no-cache tesseract-ocr tesseract-ocr-eng tesseract-ocr-deu
+    ```
+
+  - macOS (Homebrew):
+
+    ```bash
+    brew install tesseract
+    ```
+
+  - Windows (Chocolatey):
+
+    ```powershell
+    choco install -y tesseract
+    ```
+
+- Docker / Custom Add-on: Fügen Sie in Ihrem Dockerfile eine passende `apk`/`apt`-Zeile hinzu oder verwenden Sie ein Base-Image, das `tesseract` bereits enthält. Beispiel (Debian-basiert):
+
+  ```dockerfile
+  RUN apt-get update && apt-get install -y tesseract-ocr tesseract-ocr-deu tesseract-ocr-eng
+  ```
+
+- Hinweis zur Integration: Sollte `pytesseract` fehlen, installieren Sie die Python-Bibliothek in Ihrer Test-/Entwicklungsumgebung:
+
+  ```bash
+  pip install pytesseract
+  ```
+
+- Empfehlung: Dokumentieren Sie `tesseract` als Systemabhängigkeit in Ihren Deployments bzw. CI-Pipelines, statt sich auf automatische Installationsversuche zu verlassen.
+

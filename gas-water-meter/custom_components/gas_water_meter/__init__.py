@@ -84,6 +84,10 @@ SCHEMA_READ_METER_IMAGE = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the integration (domain-level, once)."""
+    _LOGGER.debug(
+        "async_setup called with config keys: %s",
+        list(config.keys()) if isinstance(config, dict) else config,
+    )
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
