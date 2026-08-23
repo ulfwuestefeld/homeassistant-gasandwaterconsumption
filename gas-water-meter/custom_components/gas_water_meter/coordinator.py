@@ -314,9 +314,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
         if data.consumption is not None and prev is not None:
             period_price = await self.db.async_get_price_at(self._entry_id, prev["timestamp"])
             if period_price is not None:
-                consumption_cost = self._compute_consumption_cost_from_price(
-                    data.consumption, period_price
-                )
+                consumption_cost = self._compute_consumption_cost_from_price(data.consumption, period_price)
                 pp_base_fee = period_price.get("base_fee")
                 prorated = self._prorate_base_fee(pp_base_fee, data.days_between or 0.0)
                 data.last_period_cost = round(consumption_cost + prorated, 2)
