@@ -376,31 +376,30 @@ class MeterDatabase:
     # Prices - CRUD
     # ------------------------------------------------------------------
 
-    async def async_add_price(  # noqa: PLR0913
+    async def async_add_price(
         self,
         entry_id: str,
         price_per_unit: float,
         valid_from: str,
-        valid_to: str | None = None,
-        currency: str = "EUR",
-        calorific_value: float | None = None,
-        condition_factor: float | None = None,
-        base_fee: float | None = None,
+        **price_options: Any,
     ) -> int:
         """Insert a new price. Auto-closes the previous open price if needed.
 
-        ``calorific_value`` and ``condition_factor`` are gas-specific
-        conversion factors.  When ``None``, the coordinator falls back to
-        the config-entry defaults.
-
-        ``base_fee`` is the annual base fee (Jahresgrundgebühr) in the
-        meter's currency.  When ``None``, no base fee is included in cost
-        calculations.
+        Additional price metadata such as ``valid_to``, ``currency``,
+        ``calorific_value``, ``condition_factor`` and ``base_fee`` remains
+        configurable through keyword arguments for compatibility with the rest
+        of the integration and tests.
 
         Returns the new row id.
         """
         if self._db is None:
             raise RuntimeError("Database not initialized")
+
+        valid_to = price_options.get("valid_to")
+        currency = price_options.get("currency", "EUR")
+        calorific_value = price_options.get("calorific_value")
+        condition_factor = price_options.get("condition_factor")
+        base_fee = price_options.get("base_fee")
 
         # If the new price has no end date, close the previous open-ended price
         if valid_to is None:
