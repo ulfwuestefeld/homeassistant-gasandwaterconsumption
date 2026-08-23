@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -86,7 +86,7 @@ def _install_tesseract() -> bool:
         try:
             _LOGGER.info("Installing tesseract-ocr via apk (Alpine)")
             # Use full executable path when available to avoid partial-path starts
-            subprocess.run(  # noqa: S603  # static package manager invocation with validated executable path
+            subprocess.run(  # nosec B603
                 [
                     apk_exec,
                     "add",
@@ -110,13 +110,13 @@ def _install_tesseract() -> bool:
     if apt_exec:
         try:
             _LOGGER.info("Installing tesseract-ocr via apt-get (Debian)")
-            subprocess.run(  # noqa: S603  # static apt-get invocation with validated executable path
+            subprocess.run(  # nosec B603
                 [apt_exec, "update", "-qq"],
                 check=True,
                 capture_output=True,
                 timeout=60,
             )
-            subprocess.run(  # noqa: S603  # static apt-get invocation with validated executable path
+            subprocess.run(  # nosec B603
                 [
                     apt_exec,
                     "install",

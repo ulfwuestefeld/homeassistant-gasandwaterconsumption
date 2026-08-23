@@ -276,10 +276,11 @@ class MeterDatabase:
         if not updates:
             return False
         params.append(reading_id)
-        # The column names in `updates` are static and validated above; the query is constructed
-        # from a closed whitelist and therefore safe to execute.
+        # The column names in `updates` come from a closed whitelist and every value is bound as
+        # a parameter, so this update is intentionally safe despite Bandit's SQL construction rule.
+        sql = f"UPDATE readings SET {', '.join(updates)} WHERE id = ?"  # nosec B608
         cursor = await self._db.execute(
-            f"UPDATE readings SET {', '.join(updates)} WHERE id = ?",  # noqa: S608
+            sql,
             params,
         )
         await self._db.commit()
@@ -461,10 +462,11 @@ class MeterDatabase:
         if not updates:
             return False
         params.append(price_id)
-        # The column names in `updates` are static and validated above; the query is constructed
-        # from a closed whitelist and therefore safe to execute.
+        # The column names in `updates` come from a closed whitelist and every value is bound as
+        # a parameter, so this update is intentionally safe despite Bandit's SQL construction rule.
+        sql = f"UPDATE prices SET {', '.join(updates)} WHERE id = ?"  # nosec B608
         cursor = await self._db.execute(
-            f"UPDATE prices SET {', '.join(updates)} WHERE id = ?",  # noqa: S608
+            sql,
             params,
         )
         await self._db.commit()
