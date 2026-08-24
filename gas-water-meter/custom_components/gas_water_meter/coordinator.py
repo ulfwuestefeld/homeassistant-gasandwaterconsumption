@@ -469,7 +469,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             "unit_class": "volume",
             # Use a stable string value for mean_type so older/newer HA
             # releases accept the metadata without raising AttributeError.
-            "mean_type": "sum",
+            "mean_type": None,
         }
 
         recorder_statistics.async_add_external_statistics(self.hass, metadata, stats)
