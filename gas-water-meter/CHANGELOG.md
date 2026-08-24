@@ -5,13 +5,14 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.2] - 2026-08-24
+## [0.3.3] - 2026-08-24
 
 ### Fixed
 
 ### Changed
 - **Python version** - added Python 3.14
-- **deprectaion message** - added unit of measure
+- **Deprectaion message** - added unitclass of measure
+- **Release bump** — integration and add-on versions updated to `0.3.3`.
 
 ## [0.3.2] - 2026-08-24
 
