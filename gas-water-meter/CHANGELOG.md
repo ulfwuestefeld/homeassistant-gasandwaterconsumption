@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+### Changed
+- **Python version** - added Python 3.14
+- **deprectaion message** - added unit of measure
+
+## [0.3.2] - 2026-08-24
+
+### Fixed
+
 - **Frontend dependency remediation** — updated vulnerable transitive package paths and added security overrides to remove advisory findings from the npm dependency graph.
 - **SBOM/FOSS documentation refresh** — synchronized the dependency inventory with the current frontend toolchain and release state.
 - **Release metadata consistency** — aligned version numbers across integration, add-on config, device metadata, and project docs.

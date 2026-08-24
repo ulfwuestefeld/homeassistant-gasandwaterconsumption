@@ -466,6 +466,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             "source": DOMAIN,
             "statistic_id": f"{DOMAIN}:reading_{self._entry_id.lower()}",
             "unit_of_measurement": UnitOfVolume.CUBIC_METERS,
+            "unit_class": "volume",
             # Use a stable string value for mean_type so older/newer HA
             # releases accept the metadata without raising AttributeError.
             "mean_type": "sum",
