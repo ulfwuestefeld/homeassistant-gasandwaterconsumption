@@ -4,7 +4,7 @@ This document lists all third-party open source components used by the Gas & Wat
 
 ## Project Version
 
-0.3.4
+0.3.5
 
 ## Runtime Dependencies (Python)
 
