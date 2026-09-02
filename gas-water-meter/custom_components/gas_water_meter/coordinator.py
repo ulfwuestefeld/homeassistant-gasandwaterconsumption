@@ -467,12 +467,12 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             "statistic_id": f"{DOMAIN}:reading_{self._entry_id.lower()}",
             "unit_of_measurement": UnitOfVolume.CUBIC_METERS,
             "unit_class": "volume",
-            # Use a stable string value for mean_type so older/newer HA
+            # Keep a stable integer for mean_type so older/newer HA
             # releases accept the metadata without raising AttributeError.
             "mean_type": 0,
         }
 
-        recorder_statistics.async_add_external_statistics(self.hass, metadata, stats)
+        recorder_statistics.async_add_external_statistics(self.hass, metadata, stats, unit_class="volume")
 
         _LOGGER.debug(
             "Imported %d statistics for %s (statistic_id=%s:reading_%s)",

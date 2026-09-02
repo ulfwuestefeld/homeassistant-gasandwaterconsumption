@@ -5,6 +5,13 @@ All notable changes to the Gas & Water Meter project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2026-09-01
+
+### Fixed
+
+- **database** - unique constraint violations due to duplicate sensor id
+- **statistics metadata** - include `unit_class` and keep compatibility-safe `mean_type` values for HA external statistics imports to prevent 2026.11 breakage
+
 ## [0.3.5] - 2026-08-25
 
 ### Fixed

@@ -917,6 +917,8 @@ async def test_statistics_imported_with_reading_timestamps(hass: HomeAssistant, 
         assert metadata["statistic_id"] == "gas_water_meter:reading_test_entry"
         assert metadata["has_sum"] is True
         assert metadata["has_mean"] is False
+        assert metadata["unit_class"] == "volume"
+        assert metadata["mean_type"] == 0
         assert metadata["name"] == "Gas Meter - Kitchen"
 
         # 3 readings → 3 statistics entries
