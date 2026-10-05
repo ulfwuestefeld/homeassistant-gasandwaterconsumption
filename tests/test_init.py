@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import os
 import tempfile
-from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from custom_components.gas_water_meter import async_setup
 from custom_components.gas_water_meter.const import DOMAIN
 from custom_components.gas_water_meter.db import MeterDatabase
@@ -20,17 +18,6 @@ try:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 except ImportError:
     from unittest.mock import MagicMock as MockConfigEntry
-
-
-@pytest.fixture(autouse=True)
-def mock_frontend_setup() -> Iterator[None]:
-    """Avoid requiring Home Assistant's separately packaged frontend assets."""
-    with patch(
-        "homeassistant.components.frontend.async_setup",
-        new_callable=AsyncMock,
-        return_value=True,
-    ):
-        yield
 
 
 async def _setup_domain_with_db(hass: HomeAssistant) -> MeterDatabase:

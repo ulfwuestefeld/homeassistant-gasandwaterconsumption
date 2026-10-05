@@ -29,6 +29,12 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 
 @pytest.fixture(autouse=True)
+def mark_panel_dependencies_loaded(hass: HomeAssistant) -> None:
+    """Avoid setting up Home Assistant's frontend stack in integration tests."""
+    hass.config.components.update({"http", "panel_custom"})
+
+
+@pytest.fixture(autouse=True)
 def _prevent_tesseract_install():
     """Prevent ensure_tesseract from running real system commands during tests."""
     with patch(
