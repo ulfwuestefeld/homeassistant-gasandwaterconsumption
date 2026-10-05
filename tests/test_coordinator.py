@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from custom_components.gas_water_meter.const import DAYS_PER_MONTH, DAYS_PER_YEAR
@@ -25,6 +25,7 @@ from .conftest import MOCK_GAS_CONFIG, MOCK_WATER_CONFIG
 def _enable_recorder_instance(hass: HomeAssistant) -> None:
     hass.data[DATA_INSTANCE] = MagicMock()
     hass.data[DATA_INSTANCE].async_import_statistics = MagicMock(return_value=None)
+    hass.data[DATA_INSTANCE].async_add_executor_job = AsyncMock(side_effect=lambda target, *args: target(*args))
     with (
         patch(
             "homeassistant.components.recorder.statistics.list_statistic_ids",
@@ -41,6 +42,7 @@ def _enable_recorder_instance(hass: HomeAssistant) -> None:
 def _ensure_recorder_instance(hass: HomeAssistant) -> None:
     hass.data[DATA_INSTANCE] = MagicMock()
     hass.data[DATA_INSTANCE].async_import_statistics = MagicMock(return_value=None)
+    hass.data[DATA_INSTANCE].async_add_executor_job = AsyncMock(side_effect=lambda target, *args: target(*args))
 
 
 try:
@@ -903,12 +905,16 @@ async def test_statistics_imported_with_reading_timestamps(hass: HomeAssistant, 
 
     _ensure_recorder_instance(hass)
 
-    with patch("homeassistant.components.recorder.statistics.async_add_external_statistics") as mock_import:
+    with patch(
+        "homeassistant.components.recorder.statistics.async_add_external_statistics",
+        autospec=True,
+    ) as mock_import:
         coordinator = MeterCoordinator(hass, entry, mock_db)
         await coordinator.async_refresh()
 
         assert mock_import.called
         call_args = mock_import.call_args
+        assert call_args.kwargs == {}
         _hass_arg, metadata, stats_iter = call_args[0]
         stats = list(stats_iter) if not isinstance(stats_iter, list) else stats_iter
 
@@ -1039,6 +1045,11 @@ async def test_statistics_uppercase_entry_id_cleans_up_legacy_statistic_id(
             hass.data[DATA_INSTANCE],
             ["gas_water_meter:reading_TEST_ENTRY_UPPER"],
         )
+        recorder_executor = hass.data[DATA_INSTANCE].async_add_executor_job
+        assert [call.args[0] for call in recorder_executor.await_args_list] == [
+            mock_list,
+            mock_clear,
+        ]
         assert mock_import.called
         metadata = mock_import.call_args[0][1]
         assert metadata["statistic_id"] == "gas_water_meter:reading_test_entry_upper"

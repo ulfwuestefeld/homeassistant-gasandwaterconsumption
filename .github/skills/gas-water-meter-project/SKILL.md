@@ -424,6 +424,50 @@ Tracked in:
 
 Use SemVer (MAJOR.MINOR.PATCH). Update `CHANGELOG.md` on releases.
 
+## Release Checklist
+
+Before publishing a new release, verify all of the following:
+
+### Release Preparation
+- [ ] Version bumped consistently in `manifest.json`, `gas-water-meter/config.yaml`, and any project references in `.cursorrules` or release notes
+- [ ] `CHANGELOG.md` updated for the new version with Added, Fixed, Changed, and Breaking sections as needed
+- [ ] Required translations updated in `strings.json`, `translations/en.json`, and `translations/de.json`
+- [ ] New or changed sensor names use `translation_key` and no hardcoded English labels remain in Python entities
+- [ ] Any new dependency added to `manifest.json` is also documented in `SBOM.json`, `SBOM.md`, and `FOSS.md` if required
+- [ ] Home Assistant config and metadata still align with the add-on and custom component definitions
+
+### Code & Quality Gates
+- [ ] Ruff check passes: `python -m ruff check gas-water-meter/custom_components/ tests/`
+- [ ] Ruff format is applied: `python -m ruff format gas-water-meter/custom_components/ tests/`
+- [ ] Full test suite passes: `pytest tests/ -q`
+- [ ] Relevant targeted tests also pass for changed areas such as coordinator, database, config flow, sensor, and services
+- [ ] Async operations use `await` correctly and mocks use `AsyncMock` instead of `MagicMock` for async code paths
+- [ ] No blocking I/O introduced outside the appropriate executor pattern
+- [ ] Data migrations and schema changes are reviewed for compatibility with existing users
+
+### Functional Validation
+- [ ] Setup and config flow still work for gas and water meters
+- [ ] Existing readings, price entries, and historical data still load correctly after migration
+- [ ] OCR and image handling still work with supported files and EXIF timestamps
+- [ ] Single-meter and multi-meter scenarios remain stable
+- [ ] Frontend panel still loads and interacts correctly with the backend API
+- [ ] Service calls continue to behave as expected (record reading, set price, read meter image)
+
+### Release Sign-off
+- [ ] Git diff reviewed and only intentional changes included
+- [ ] Release notes clearly describe the user-visible changes and any migration impact
+- [ ] Final validation done from a clean environment or fully updated dev setup
+- [ ] Branch is ready for merge and tag/release creation
+
+### Minimum Release Command Checklist
+```bash
+python -m ruff check gas-water-meter/custom_components/ tests/
+python -m ruff format --check gas-water-meter/custom_components/ tests/
+pytest tests/ -q
+```
+
+**Rule**: A release is not complete until the checklist is fully verified and all release-critical validations pass.
+
 ## Translations (i18n)
 
 Source strings in `strings.json`:

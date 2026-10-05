@@ -472,7 +472,7 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
             "mean_type": 0,
         }
 
-        recorder_statistics.async_add_external_statistics(self.hass, metadata, stats, unit_class="volume")
+        recorder_statistics.async_add_external_statistics(self.hass, metadata, stats)
 
         _LOGGER.debug(
             "Imported %d statistics for %s (statistic_id=%s:reading_%s)",
@@ -507,12 +507,12 @@ class MeterCoordinator(DataUpdateCoordinator[MeterCoordinatorData]):
 
         old_statistic_id = f"{DOMAIN}:reading_{upper_id}"
         try:
-            existing = await self.hass.async_add_executor_job(
+            recorder = get_recorder_instance(self.hass)
+            existing = await recorder.async_add_executor_job(
                 recorder_statistics.list_statistic_ids, self.hass, {old_statistic_id}
             )
             if any(stat["statistic_id"] == old_statistic_id for stat in existing):
-                recorder = get_recorder_instance(self.hass)
-                await self.hass.async_add_executor_job(
+                await recorder.async_add_executor_job(
                     recorder_statistics.clear_statistics, recorder, [old_statistic_id]
                 )
                 _LOGGER.info(

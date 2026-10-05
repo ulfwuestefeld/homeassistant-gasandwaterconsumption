@@ -251,7 +251,7 @@ Note: The add-on Dockerfile bundles `tesseract` and `pillow-heif` for the pre-bu
 
 ## Version
 
-0.3.5 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.4.0 — See [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Tesseract Installation — Hinweise und Empfehlungen
 
@@ -299,4 +299,3 @@ Die Integration versucht in einigen Umgebungen (z. B. beim Start in einem Add-on
   ```
 
 - Empfehlung: Dokumentieren Sie `tesseract` als Systemabhängigkeit in Ihren Deployments bzw. CI-Pipelines, statt sich auf automatische Installationsversuche zu verlassen.
-
