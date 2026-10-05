@@ -205,7 +205,7 @@ def mock_setup_deps():
     """Mock panel_custom and http registration for setup tests."""
     mock_register_static = AsyncMock()
     mock_register_panel = AsyncMock()
-    mock_register_view = lambda view: None  # noqa: E731
+    mock_register_view = lambda self, view: None  # noqa: E731
 
     with (
         patch(

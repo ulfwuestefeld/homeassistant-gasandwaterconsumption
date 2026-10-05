@@ -3,11 +3,11 @@
     "name": "Gas & Water Meter",
     "codeowners": ["@ulfwuestefeld"],
     "config_flow": true,
-    "dependencies": [],
+    "dependencies": ["http", "panel_custom"],
     "documentation": "https://github.com/ulfwuestefeld/gasandwater",
     "integration_type": "service",
     "iot_class": "calculated",
     "issue_tracker": "https://github.com/ulfwuestefeld/gasandwater/issues",
     "requirements": ["pytesseract>=0.3.10", "aiosqlite>=0.20.0", "pillow-heif>=0.18.0","josepy>=1.15.0"],
-    "version": "0.4.0"
+    "version": "0.4.1"
 }

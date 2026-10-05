@@ -52,10 +52,11 @@ A Home Assistant add-on that provides a custom integration for manually recordin
 3. **Restart Home Assistant** (Settings → System → Restart)
 4. Go to **Settings** → **Devices & Services** → **Add Integration**
 5. Search for "Gas & Water Meter"
+6. Complete setup for at least one meter; the sidebar panel is registered when the integration loads
 
 ## Configuration
 
-After restarting Home Assistant:
+After the add-on has installed its files and Home Assistant has restarted:
 
 1. Go to **Settings** > **Devices & Services** > **Add Integration**
 2. Search for "Gas & Water Meter"
@@ -68,7 +69,7 @@ After restarting Home Assistant:
 
 ### Sidebar Panel (GUI)
 
-After installation, a **Gas & Water Meter** entry appears in the Home Assistant sidebar. The panel provides:
+After at least one meter has been configured and its integration entry has loaded, a **Gas & Water Meter** entry appears in the Home Assistant sidebar. The panel provides:
 
 - **Meter selection** — switch between configured meters via tabs
 - **Reading entry** — enter meter readings manually or upload a photo for OCR
@@ -251,7 +252,7 @@ Note: The add-on Dockerfile bundles `tesseract` and `pillow-heif` for the pre-bu
 
 ## Version
 
-0.4.0 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.4.1 — See [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Tesseract Installation — Hinweise und Empfehlungen
 

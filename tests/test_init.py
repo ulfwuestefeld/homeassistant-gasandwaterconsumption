@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import os
 import tempfile
-from unittest.mock import patch
+from collections.abc import Iterator
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from custom_components.gas_water_meter import async_setup
 from custom_components.gas_water_meter.const import DOMAIN
 from custom_components.gas_water_meter.db import MeterDatabase
@@ -18,6 +20,17 @@ try:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 except ImportError:
     from unittest.mock import MagicMock as MockConfigEntry
+
+
+@pytest.fixture(autouse=True)
+def mock_frontend_setup() -> Iterator[None]:
+    """Avoid requiring Home Assistant's separately packaged frontend assets."""
+    with patch(
+        "homeassistant.components.frontend.async_setup",
+        new_callable=AsyncMock,
+        return_value=True,
+    ):
+        yield
 
 
 async def _setup_domain_with_db(hass: HomeAssistant) -> MeterDatabase:
@@ -218,6 +231,29 @@ async def test_async_setup_registers_http(hass: HomeAssistant, mock_setup_deps) 
 
     assert hass.data[DOMAIN].get("http_registered") is True
     mock_http.register_view.assert_called_once()
+
+
+async def test_async_setup_registers_sidebar_panel(hass: HomeAssistant, mock_setup_deps) -> None:
+    """Test that integration setup registers the frontend sidebar panel."""
+    mock_http = MagicMock()
+    mock_http.register_view = MagicMock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http
+
+    await async_setup(hass, {})
+
+    assert hass.data[DOMAIN].get("panel_registered") is True
+    mock_http.async_register_static_paths.assert_awaited_once()
+    mock_setup_deps["register_panel"].assert_awaited_once_with(
+        hass=hass,
+        frontend_url_path="gas-water-meter",
+        webcomponent_name="gas-water-meter-panel",
+        module_url="/gas_water_meter_panel/entrypoint.js",
+        sidebar_title="Gas & Water Meter",
+        sidebar_icon="mdi:meter-gas-outline",
+        embed_iframe=True,
+        require_admin=False,
+    )
 
 
 async def test_async_setup_handles_panel_failure(hass: HomeAssistant) -> None:

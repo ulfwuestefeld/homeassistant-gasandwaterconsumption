@@ -127,7 +127,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             await _register_panel(hass)
             hass.data[DOMAIN]["panel_registered"] = True
         except Exception:
-            _LOGGER.warning("Could not register frontend panel - panel_custom/frontend may not be available yet")
+            _LOGGER.warning(
+                "Could not register frontend panel - panel_custom/frontend may not be available yet",
+                exc_info=True,
+            )
 
     return True
 
