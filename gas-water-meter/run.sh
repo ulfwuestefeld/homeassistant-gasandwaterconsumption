@@ -5,12 +5,13 @@
 # ==============================================================================
 
 declare -r SOURCE="/usr/share/custom_components/gas_water_meter"
-declare -r TARGET="/config/custom_components/gas_water_meter"
+declare -r HOMEASSISTANT_CONFIG="/homeassistant"
+declare -r TARGET="${HOMEASSISTANT_CONFIG}/custom_components/gas_water_meter"
 
 bashio::log.info "Gas & Water Meter Add-on starting..."
 
 # Create target directory
-mkdir -p /config/custom_components
+mkdir -p "${HOMEASSISTANT_CONFIG}/custom_components"
 
 # Copy or update integration files
 if [ -d "${TARGET}" ]; then

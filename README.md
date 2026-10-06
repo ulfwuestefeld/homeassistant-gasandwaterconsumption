@@ -252,7 +252,7 @@ Note: The add-on Dockerfile bundles `tesseract` and `pillow-heif` for the pre-bu
 
 ## Version
 
-0.4.1 — See [CHANGELOG.md](CHANGELOG.md) for details.
+0.4.2 — See [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Tesseract Installation — Hinweise und Empfehlungen
 
